@@ -14,14 +14,14 @@ export default defineConfig({
     },
   },
 
-  server: {
-    proxy: {
-      // כל פנייה שתתחיל ב- /dnd-api תופנה ישירות ל-D&D Beyond
-      '/dnd-api': {
-        target: 'https://character-service.dndbeyond.com',
-        changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/dnd-api/, ''),
-      },
-    },
-  },
+  // server: {
+  //   proxy: {
+  //     // כל פנייה שתתחיל ב- /dnd-api תופנה ישירות ל-D&D Beyond
+  //     '/dnd-api': {
+  //       target: 'https://character-service.dndbeyond.com',
+  //       changeOrigin: true,
+  //       rewrite: (path) => path.replace(/^\/dnd-api/, ''),
+  //     },
+  //   },
+  // },
 });

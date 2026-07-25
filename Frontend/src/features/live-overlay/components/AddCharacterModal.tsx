@@ -1,5 +1,6 @@
+// src/components/AddCharacterModal.tsx
 import React, { useState } from "react";
-import { fetchDndBeyondCharacter } from "../../../services/dndBeyondService";
+import { saveOrSyncDndBeyondCharacter } from "../../../services/dndBeyondService";
 import type { Character } from "../../../types/character";
 
 interface AddCharacterModalProps {
@@ -37,19 +38,16 @@ export const AddCharacterModal: React.FC<AddCharacterModalProps> = ({
     setError(null);
 
     try {
-      const fetchedChar = await fetchDndBeyondCharacter(charId);
+      // קריאת POST לשרת ששומר את הדמות ב-DB ומחזירה אותה
+      const savedChar = await saveOrSyncDndBeyondCharacter(charId);
 
-      const newChar: Character = {
-        ...fetchedChar,
-        dndCharacterId: charId,
-      };
-
-      onAddCharacter(newChar);
+      onAddCharacter(savedChar);
       setInputUrlOrId("");
       onClose();
     } catch (err: any) {
+      console.error("Failed to add character:", err);
       setError(
-        "לא ניתן למשוך את הדמות. וודא שה-ID תקין והדמות מוגדרת כ-Public.",
+        "לא ניתן למשוך או לשמור את הדמות. וודא שה-ID תקין והדמות מוגדרת כ-Public."
       );
     } finally {
       setLoading(false);
@@ -97,7 +95,7 @@ export const AddCharacterModal: React.FC<AddCharacterModalProps> = ({
           >
             {loading ? (
               <>
-                <span className="animate-spin">⏳</span> טוען מ-Beyond...
+                <span className="animate-spin">⏳</span> שומר ב-DB...
               </>
             ) : (
               "הוסף דמות"

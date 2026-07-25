@@ -1,48 +1,46 @@
 import { useState, useEffect } from 'react';
+import { fetchLiveDndBeyondCharacter } from '../services/dndBeyondService';
 import type { Character } from '../types/character';
-import { fetchDndBeyondCharacter } from '../services/dndBeyondService';
 
-export const useDndCharacter = (characterId: string, refreshIntervalMs = 10000) => {
+export const useDndCharacter = (beyondId?: string, intervalMs: number = 5000) => {
   const [character, setCharacter] = useState<Character | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
+  const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // 1. בדיקת הגנה: אם אין characterId, אל תפנה ל-Service!
-    if (!characterId) {
-      console.warn('⚠️ useDndCharacter: characterId is missing or undefined!');
-      setLoading(false);
-      return;
-    }
-    
+    if (!beyondId) return;
+
     let isMounted = true;
 
     const loadCharacter = async () => {
+      setLoading(true);
       try {
-        const data = await fetchDndBeyondCharacter(characterId);
+        const data = await fetchLiveDndBeyondCharacter(beyondId);
         if (isMounted) {
           setCharacter(data);
           setError(null);
         }
       } catch (err: any) {
         if (isMounted) {
-          setError(err.message || 'Error loading character');
+          const message = err.response?.data?.message || 'נכשלה טעינת הדמות מ-D&D Beyond';
+          setError(message);
         }
       } finally {
         if (isMounted) setLoading(false);
       }
     };
 
+    // קריאה ראשונית
     loadCharacter();
 
-    // Polling - עדכון אוטומטי כל X שניות בלייב!
-    const interval = setInterval(loadCharacter, refreshIntervalMs);
+    // פולינג בלופ
+    const interval = setInterval(loadCharacter, intervalMs);
 
     return () => {
       isMounted = false;
       clearInterval(interval);
     };
-  }, [characterId, refreshIntervalMs]);
+  }, [beyondId, intervalMs]);
 
   return { character, loading, error };
 };

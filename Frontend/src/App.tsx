@@ -1,17 +1,10 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import type { Campaign } from "./types/campaign";
 import { CampaignHub } from "./features/campaign-hub/CampaignHub";
 import { LiveOverlay } from "./features/live-overlay/LiveOverlay";
 import { FullscreenButton } from "./components/FullscreenButton";
-import { checkHealth } from "./services/userService";
 
 export const App = () => {
-  useEffect(() => {
-    checkHealth()
-      .then((data) => console.log("🟢 חיבור מצוין! השרת החזיר:", data))
-      .catch((err) => console.error("🔴 אין תקשורת עם השרת:", err));
-  }, []);
-
   const [campaigns, setCampaigns] = useState<Campaign[]>([
     {
       id: "roy-elias",

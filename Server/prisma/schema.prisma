@@ -1,5 +1,7 @@
+// backend/prisma/schema.prisma
+
 generator client {
-  provider = "prisma-client"
+  provider = "prisma-client-js"
   output   = "../src/generated/prisma"
 }
 
@@ -7,8 +9,52 @@ datasource db {
   provider = "postgresql"
 }
 
+// ==========================================
+// User Model
+// ==========================================
 model User {
-  id    Int    @id @default(autoincrement())
-  email String @unique
-  name  String?
+  id         String      @id @default(uuid())
+  email      String      @unique
+  username   String      @unique
+  password   String
+  characters Character[]
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+}
+
+// ==========================================
+// Character Model
+// ==========================================
+model Character {
+  id          String   @id @default(uuid())
+  
+  // מזהה ייחודי מ מול D&D Beyond
+  beyondId    String   @unique 
+  
+  // מידע בסיסי
+  name        String
+  avatarUrl   String?
+  race        String
+  className   String   
+  subclass    String?  
+  level       Int      @default(1)
+  
+  // מדדי נתונים
+  currentHp   Int?
+  maxHp       Int?
+  tempHp      Int?     @default(0)
+  armorClass  Int?     
+  speed       Int?
+  
+  // מבני נתונים מורכבים בפורמט JSON
+  stats       Json?    
+  equipment   Json?    
+  spells      Json?    
+  
+  // קישור למשתמש
+  userId      String?
+  user        User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
