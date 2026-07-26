@@ -1,16 +1,22 @@
-// backend/src/services/dndBeyondService.ts
 import axios from "axios";
 import { parseBeyondToFrontend } from "../utils/characterParser.js";
 
 export const fetchRawBeyondCharacter = async (beyondId: string) => {
-  const response = await axios.get(
-    `https://character-service.dndbeyond.com/character/v5/character/${beyondId}`
-  );
+  try {
+    const response = await axios.get(
+      `https://character-service.dndbeyond.com/character/v5/character/${beyondId}`
+    );
 
-  const rawData = response.data?.data;
-  if (!rawData) {
-    throw new Error("Character not found on D&D Beyond");
+    const rawData = response.data?.data;
+    if (!rawData) {
+      throw new Error("Character data is missing from D&D Beyond response");
+    }
+
+    return parseBeyondToFrontend(rawData);
+  } catch (error: any) {
+    if (error.response?.status === 404) {
+      throw new Error(`Character with ID ${beyondId} was not found on D&D Beyond`);
+    }
+    throw error;
   }
-
-  return parseBeyondToFrontend(rawData);
 };

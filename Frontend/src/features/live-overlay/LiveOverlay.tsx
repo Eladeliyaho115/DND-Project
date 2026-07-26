@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import type { Campaign } from '../../types/campaign';
 import type { Character } from '../../types/character';
 import { CharacterCard } from './components/CharacterCard';
-import { DmControlsModal } from './components/ControslModal';
+import { ControlsModal } from './components/ControslModal';
 import { GeminiChatDrawer } from './components/GeminiChatDrawer';
 import { deleteCharacterFromDb, updateCampaignBackground } from '../../services/dndBeyondService';
 
@@ -17,6 +17,12 @@ export const LiveOverlay: React.FC<LiveOverlayProps> = ({ campaign, onBack, onUp
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [characters, setCharacters] = useState<Character[]>(campaign.characters);
   const [currentBg, setCurrentBg] = useState<string>(campaign.bgUrl);
+
+  // סנכרון ה-State המקומי אם ה-Campaign משתנה מבחוץ
+  useEffect(() => {
+    setCharacters(campaign.characters);
+    setCurrentBg(campaign.bgUrl);
+  }, [campaign]);
 
   const handleAddCharacter = (newChar: Character) => {
     setCharacters((prev) => [...prev, newChar]);
@@ -44,14 +50,14 @@ export const LiveOverlay: React.FC<LiveOverlayProps> = ({ campaign, onBack, onUp
   };
 
   const handleOpenDndBeyond = (character: Character) => {
-    const charBeyondId = character.dndCharacterId || character.beyondId;
+    const charBeyondId = character.beyondId;
     if (!charBeyondId) {
       alert('לדמות זו אין מזהה D&D Beyond מוגדר.');
       return;
     }
 
     const width = 700;
-    const height = 500;
+    const height = 600;
     const left = window.screenX + (window.outerWidth - width) / 2;
     const top = window.screenY + (window.outerHeight - height) / 2;
 
@@ -128,7 +134,7 @@ export const LiveOverlay: React.FC<LiveOverlayProps> = ({ campaign, onBack, onUp
         <footer className="flex items-center justify-center gap-6 max-w-6xl mx-auto w-full overflow-x-auto pb-2">
           {characters.map((char) => (
             <CharacterCard 
-              key={char.id} 
+              key={char.id || char.beyondId} 
               character={char} 
               onOpenDetails={handleOpenDndBeyond}
             />
@@ -143,7 +149,7 @@ export const LiveOverlay: React.FC<LiveOverlayProps> = ({ campaign, onBack, onUp
       />
 
       {/* DM Controls Modal */}
-      <DmControlsModal
+      <ControlsModal
         isOpen={isAdminOpen}
         onClose={() => setIsAdminOpen(false)}
         campaignId={campaign.id}

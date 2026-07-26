@@ -14,39 +14,44 @@ export interface Feature {
   description?: string;
 }
 
+export interface CharacterHp {
+  current: number;
+  max: number;
+  temp?: number;
+}
+
+export interface CharacterStats {
+  str?: number;
+  dex?: number;
+  con?: number;
+  int?: number;
+  wis?: number;
+  cha?: number;
+}
+
+export interface PassiveSkills {
+  perception?: number;
+  investigation?: number;
+  insight?: number;
+}
+
 export interface Character {
   id: string;
   beyondId?: string;
-  dndCharacterId?: string;
-  campaignId?: string; // 👈 1. הוספת השדה הקריטי לשיוך המערכה!
+  campaignId?: string;
   name: string;
-  player: string;
-  class: string;
+  player?: string;
+  class?: string;
   race?: string;
   level: number;
-  hp: {
-    current: number;
-    max: number;
-    temp: number;
-  };
-  ac: number;
-  speed: number;
-  initiative: number;
-  avatarUrl: string;
-  proficiencyBonus: number;
-  passiveSkills: {
-    perception?: number;
-    investigation?: number;
-    insight?: number;
-  };
-  stats: {
-    str?: number;
-    dex?: number;
-    con?: number;
-    int?: number;
-    wis?: number;
-    cha?: number;
-  };
+  hp: CharacterHp;
+  ac?: number;
+  speed?: number;
+  initiative?: number;
+  avatarUrl?: string;
+  proficiencyBonus?: number;
+  passiveSkills?: PassiveSkills;
+  stats?: CharacterStats;
   inventory?: InventoryItem[];
   spells?: Spell[];
   features?: Feature[];

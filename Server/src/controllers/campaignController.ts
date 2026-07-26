@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import { prisma } from "../config/db.js";
+import { formatDbCharacterToFrontend } from "../utils/characterParser.js";
 
-// הגדרת interface עבור פרמטר ה-ID
 interface CampaignParams {
   id: string;
 }
@@ -12,7 +12,7 @@ export const getCampaignById = async (
   res: Response
 ): Promise<Response> => {
   try {
-    const campaignId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    const campaignId = req.params.id;
 
     if (!campaignId) {
       return res.status(400).json({ message: "Campaign ID is required" });
@@ -29,36 +29,7 @@ export const getCampaignById = async (
       return res.status(404).json({ message: "Campaign not found" });
     }
 
-    // מיפוי נתוני הדמויות מפורמט ה-DB לפורמט ה-Frontend
-    const formattedCharacters = (campaign.characters || []).map((char: any) => {
-      const statsJson = char.stats || {};
-
-      return {
-        id: char.id,
-        beyondId: char.beyondId,
-        dndCharacterId: char.beyondId,
-        name: char.name,
-        player: char.player,
-        class: char.className,
-        race: char.race,
-        level: char.level,
-        proficiencyBonus: char.proficiencyBonus,
-        initiative: char.initiative,
-        avatarUrl: char.avatarUrl || "",
-        hp: {
-          current: char.currentHp ?? 10,
-          max: char.maxHp ?? 10,
-          temp: char.tempHp ?? 0,
-        },
-        ac: char.armorClass ?? 10,
-        speed: char.speed ?? 30,
-        stats: statsJson.stats || {},
-        passiveSkills: statsJson.passiveSkills || {},
-        inventory: char.equipment || [],
-        spells: char.spells || [],
-        features: char.features || [],
-      };
-    });
+    const formattedCharacters = (campaign.characters || []).map(formatDbCharacterToFrontend);
 
     return res.status(200).json({
       ...campaign,
@@ -76,7 +47,7 @@ export const updateCampaignBackground = async (
   res: Response
 ): Promise<Response> => {
   try {
-    const campaignId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    const campaignId = req.params.id;
     const { bgUrl } = req.body;
 
     if (!campaignId) {
@@ -110,34 +81,7 @@ export const getAllCampaigns = async (_req: Request, res: Response): Promise<Res
 
     const formattedCampaigns = campaigns.map((campaign) => ({
       ...campaign,
-      characters: (campaign.characters || []).map((char: any) => {
-        const statsJson = char.stats || {};
-        return {
-          id: char.id,
-          beyondId: char.beyondId,
-          dndCharacterId: char.beyondId,
-          name: char.name,
-          player: char.player,
-          class: char.className,
-          race: char.race,
-          level: char.level,
-          proficiencyBonus: char.proficiencyBonus,
-          initiative: char.initiative,
-          avatarUrl: char.avatarUrl || "",
-          hp: {
-            current: char.currentHp ?? 10,
-            max: char.maxHp ?? 10,
-            temp: char.tempHp ?? 0,
-          },
-          ac: char.armorClass ?? 10,
-          speed: char.speed ?? 30,
-          stats: statsJson.stats || {},
-          passiveSkills: statsJson.passiveSkills || {},
-          inventory: char.equipment || [],
-          spells: char.spells || [],
-          features: char.features || [],
-        };
-      }),
+      characters: (campaign.characters || []).map(formatDbCharacterToFrontend),
     }));
 
     return res.status(200).json(formattedCampaigns);

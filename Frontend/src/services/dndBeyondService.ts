@@ -1,10 +1,10 @@
-import { api } from './../api/axiosClient';
+import { api } from '../api/axiosClient';
 import type { Character } from '../types/character';
 import type { Campaign } from '../types/campaign';
 
 // קריאה בלייב - מיועד ל-Hook של ה-5 שניות
 export const fetchLiveDndBeyondCharacter = async (beyondId: string): Promise<Character> => {
-  const response = await api.get(`/characters/beyond/${beyondId}/live`);
+  const response = await api.get<Character>(`/characters/beyond/${beyondId}/live`);
   return response.data;
 };
 
@@ -13,7 +13,7 @@ export const saveOrSyncDndBeyondCharacter = async (
   beyondId: string, 
   campaignId?: string
 ): Promise<Character> => {
-  const response = await api.post(`/characters/beyond/${beyondId}/save`, { campaignId });
+  const response = await api.post<{ character: Character }>(`/characters/beyond/${beyondId}/save`, { campaignId });
   return response.data.character;
 };
 
@@ -24,7 +24,7 @@ export const deleteCharacterFromDb = async (characterId: string): Promise<void> 
 
 // טעינת מערכה כולל כל הדמויות השמורות ב-DB
 export const fetchCampaignWithCharacters = async (campaignId: string): Promise<Campaign> => {
-  const response = await api.get(`/campaigns/${campaignId}`);
+  const response = await api.get<Campaign>(`/campaigns/${campaignId}`);
   return response.data;
 };
 
@@ -33,6 +33,6 @@ export const updateCampaignBackground = async (
   campaignId: string, 
   bgUrl: string
 ): Promise<Campaign> => {
-  const response = await api.patch(`/campaigns/${campaignId}/background`, { bgUrl });
+  const response = await api.patch<Campaign>(`/campaigns/${campaignId}/background`, { bgUrl });
   return response.data;
 };

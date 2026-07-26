@@ -23,7 +23,7 @@ export const CharacterDetailsModal: React.FC<CharacterDetailsModalProps> = ({
     loading,
     error,
   } = useDndCharacter(
-    isOpen ? initialCharacter.dndCharacterId || "" : "",
+    isOpen ? initialCharacter.beyondId || "" : "",
     5000,
   );
 
@@ -31,7 +31,7 @@ export const CharacterDetailsModal: React.FC<CharacterDetailsModalProps> = ({
 
   // שימוש בנתוני Live אם קיימים, אחרת בנתונים הסטטיים
   const displayChar =
-    initialCharacter.dndCharacterId && liveCharacter
+    initialCharacter.beyondId && liveCharacter
       ? liveCharacter
       : initialCharacter;
 
@@ -102,7 +102,7 @@ export const CharacterDetailsModal: React.FC<CharacterDetailsModalProps> = ({
                 <h2 className="text-2xl font-bold text-white">
                   {displayChar.name}
                 </h2>
-                {initialCharacter.dndCharacterId && (
+                {initialCharacter.beyondId && (
                   <span
                     className={`text-[10px] font-bold px-2 py-0.5 rounded border ${
                       loading
