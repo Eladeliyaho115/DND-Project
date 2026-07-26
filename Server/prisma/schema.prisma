@@ -30,13 +30,11 @@ model Campaign {
   id          String      @id @default(uuid())
   title       String
   description String?
+  status      String      @default("active") // "active" | "completed"
   bgUrl       String      @default("https://images.unsplash.com/photo-1518709268805-4e9042af9f23")
   
-  // קישור למשתמש שיצר/מנהל את המערכה (DM)
   userId      String?
   user        User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
-
-  // הדמויות שמשתתפות במערכה הזו
   characters  Character[]
 
   createdAt   DateTime    @default(now())

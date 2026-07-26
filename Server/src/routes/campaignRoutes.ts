@@ -2,18 +2,21 @@ import { Router } from "express";
 import { 
   getCampaignById, 
   getAllCampaigns, 
-  updateCampaignBackground 
+  updateCampaignBackground,
+  createCampaign,
+  updateCampaignStatus,
+  updateCampaign, // 👈 1. ייבוא
+  deleteCampaign
 } from "../controllers/campaignController.js";
 
 const router = Router();
 
-// GET /api/campaigns - קבלת כל המערכות מהדאטאבייס
 router.get("/", getAllCampaigns);
-
-// GET /api/campaigns/:id - קבלת מערכה ספציפית לפי ID
+router.post("/", createCampaign);
 router.get("/:id", getCampaignById);
-
-// PATCH /api/campaigns/:id/background - עדכון תמונת רקע
+router.put("/:id", updateCampaign); // 👈 2. הוספת ה-Route לעדכון כללי
 router.patch("/:id/background", updateCampaignBackground);
+router.patch("/:id/status", updateCampaignStatus);
+router.delete("/:id", deleteCampaign);
 
 export default router;

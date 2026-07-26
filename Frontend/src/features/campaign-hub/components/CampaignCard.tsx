@@ -1,20 +1,23 @@
-import React from 'react';
-import styles from '@styles/CharacterCard.module.css';
-import type { Campaign } from '../../../types/campaign';
+import React from "react";
+import styles from '@styles/CampaignCard.module.css';
+import type { Campaign } from "../../../types/campaign";
 
 interface CampaignCardProps {
   campaign: Campaign;
   onSelect: (id: string) => void;
+  onOpenEditModal: (campaign: Campaign) => void;
 }
 
-export const CampaignCard: React.FC<CampaignCardProps> = ({ campaign, onSelect }) => {
-  const isActive = campaign.status === 'active';
+export const CampaignCard: React.FC<CampaignCardProps> = ({
+  campaign,
+  onSelect,
+  onOpenEditModal,
+}) => {
+  const isActive = campaign.status === "active";
 
   return (
-    <div
-      onClick={() => onSelect(campaign.id)}
-      className={`${styles.card} ${isActive ? styles.activeCard : ''}`}
-    >
+    <div className={`${styles.card} ${isActive ? styles.activeCard : ""}`}>
+      {/* תמונת רקע */}
       <div
         className={styles.bgImage}
         style={{ backgroundImage: `url(${campaign.bgUrl})` }}
@@ -22,29 +25,56 @@ export const CampaignCard: React.FC<CampaignCardProps> = ({ campaign, onSelect }
         <div className={styles.gradientOverlay} />
       </div>
 
-      <div className={styles.statusBadge}>
-        {isActive ? (
-          <span className={`${styles.statusBadge} ${styles.badgeActive}`}>
-            ● Active Session
-          </span>
-        ) : (
-          <span className={`${styles.statusBadge} ${styles.badgeCompleted}`}>
-            Completed
-          </span>
-        )}
-      </div>
+      <div onClick={() => onSelect(campaign.id)} className={styles.content}>
+        {/* 1. Header: Badge סטטוס */}
+        <div className={styles.header}>
+          <div>
+            {isActive ? (
+              <span className={styles.statusActive}>
+                <span className={styles.dotActive} />
+                Active Session
+              </span>
+            ) : (
+              <span className={styles.statusCompleted}>
+                <span className={styles.dotCompleted} />
+                Completed
+              </span>
+            )}
+          </div>
+        </div>
 
-      <div className={styles.content}>
-        <h2 className={styles.title}>{campaign.title}</h2>
-        <p className={styles.description}>{campaign.description}</p>
+        {/* 2. תוכן מרכזי */}
+        <div className={styles.bodyContent}>
+          <h2 className={styles.title}>{campaign.title}</h2>
 
+          {campaign.description && (
+            <p className={styles.description}>{campaign.description}</p>
+          )}
+        </div>
+
+        {/* 3. Footer */}
         <div className={styles.footer}>
-          <span>
-            {campaign.characters.length > 0
+          <span className={styles.playersText}>
+            👥{" "}
+            {campaign.characters?.length > 0
               ? `${campaign.characters.length} Players Connected`
-              : 'Archive'}
+              : "Archive"}
           </span>
-          <span className={styles.actionText}>Enter Overlay →</span>
+
+          <div className={styles.footerRight}>
+            <span className={styles.actionText}>Enter Overlay →</span>
+
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onOpenEditModal(campaign);
+              }}
+              className={styles.editButton}
+              title="ערוך קמפיין"
+            >
+              ⚙️
+            </button>
+          </div>
         </div>
       </div>
     </div>
