@@ -1,4 +1,3 @@
-// src/components/AddCharacterModal.tsx
 import React, { useState } from "react";
 import { saveOrSyncDndBeyondCharacter } from "../../../services/dndBeyondService";
 import type { Character } from "../../../types/character";
@@ -6,12 +5,14 @@ import type { Character } from "../../../types/character";
 interface AddCharacterModalProps {
   isOpen: boolean;
   onClose: () => void;
+  campaignId?: string;
   onAddCharacter: (newChar: Character) => void;
 }
 
 export const AddCharacterModal: React.FC<AddCharacterModalProps> = ({
   isOpen,
   onClose,
+  campaignId,
   onAddCharacter,
 }) => {
   const [inputUrlOrId, setInputUrlOrId] = useState("");
@@ -38,8 +39,8 @@ export const AddCharacterModal: React.FC<AddCharacterModalProps> = ({
     setError(null);
 
     try {
-      // קריאת POST לשרת ששומר את הדמות ב-DB ומחזירה אותה
-      const savedChar = await saveOrSyncDndBeyondCharacter(charId);
+      // קריאת POST לשרת ששומרת את הדמות ב-DB ומשלבת אותה בקמפיין
+      const savedChar = await saveOrSyncDndBeyondCharacter(charId, campaignId);
 
       onAddCharacter(savedChar);
       setInputUrlOrId("");

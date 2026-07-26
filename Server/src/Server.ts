@@ -3,8 +3,8 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import userRoutes from './routes/userRoutes.js';
-// backend/src/app.ts (או server.ts)
 import characterRoutes from './routes/characterRoutes.js';
+import campaignRoutes from "./routes/campaignRoutes.js";
 
 dotenv.config();
 
@@ -18,6 +18,8 @@ app.use(express.json());
 app.use('/api/users', userRoutes);
 
 app.use('/api/characters', characterRoutes);
+
+app.use("/api/campaigns", campaignRoutes);
 
 app.listen(PORT, () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`);

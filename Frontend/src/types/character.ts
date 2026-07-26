@@ -16,10 +16,13 @@ export interface Feature {
 
 export interface Character {
   id: string;
+  beyondId?: string;
   dndCharacterId?: string;
+  campaignId?: string; // 👈 1. הוספת השדה הקריטי לשיוך המערכה!
   name: string;
   player: string;
   class: string;
+  race?: string;
   level: number;
   hp: {
     current: number;
@@ -30,21 +33,21 @@ export interface Character {
   speed: number;
   initiative: number;
   avatarUrl: string;
-  proficiencyBonus: number; // 👈 חדש
-  passiveSkills: {         // 👈 חדש
-    perception: number;
-    investigation: number;
-    insight: number;
+  proficiencyBonus: number;
+  passiveSkills: {
+    perception?: number;
+    investigation?: number;
+    insight?: number;
   };
   stats: {
-    str: number;
-    dex: number;
-    con: number;
-    int: number;
-    wis: number;
-    cha: number;
+    str?: number;
+    dex?: number;
+    con?: number;
+    int?: number;
+    wis?: number;
+    cha?: number;
   };
-  inventory?: { name: string; quantity: number }[];
-  spells?: { name: string; level: number; description: string }[];
-  features?: { name: string; description: string }[];
+  inventory?: InventoryItem[];
+  spells?: Spell[];
+  features?: Feature[];
 }

@@ -18,43 +18,72 @@ model User {
   username   String      @unique
   password   String
   characters Character[]
+  campaigns  Campaign[]  // משתמש יכול לנהל/להחזיק מספר מערכות
   createdAt  DateTime    @default(now())
   updatedAt  DateTime    @updatedAt
+}
+
+// ==========================================
+// Campaign Model
+// ==========================================
+model Campaign {
+  id          String      @id @default(uuid())
+  title       String
+  description String?
+  bgUrl       String      @default("https://images.unsplash.com/photo-1518709268805-4e9042af9f23")
+  
+  // קישור למשתמש שיצר/מנהל את המערכה (DM)
+  userId      String?
+  user        User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  // הדמויות שמשתתפות במערכה הזו
+  characters  Character[]
+
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
 }
 
 // ==========================================
 // Character Model
 // ==========================================
 model Character {
-  id          String   @id @default(uuid())
+  id               String    @id @default(uuid())
   
   // מזהה ייחודי מ מול D&D Beyond
-  beyondId    String   @unique 
+  beyondId         String    @unique 
   
   // מידע בסיסי
-  name        String
-  avatarUrl   String?
-  race        String
-  className   String   
-  subclass    String?  
-  level       Int      @default(1)
+  name             String
+  player           String    @default("Player")
+  avatarUrl        String?
+  race             String?
+  className        String?   
+  subclass         String?  
+  level            Int       @default(1)
+  proficiencyBonus Int       @default(2)
+  initiative       Int       @default(0)
   
   // מדדי נתונים
-  currentHp   Int?
-  maxHp       Int?
-  tempHp      Int?     @default(0)
-  armorClass  Int?     
-  speed       Int?
+  currentHp        Int?
+  maxHp            Int?
+  tempHp           Int?      @default(0)
+  armorClass       Int?     
+  speed            Int?      @default(30)
   
   // מבני נתונים מורכבים בפורמט JSON
-  stats       Json?    
-  equipment   Json?    
-  spells      Json?    
+  stats            Json?     
+  equipment        Json?     
+  spells           Json?     
+  features         Json?     
   
-  // קישור למשתמש
-  userId      String?
-  user        User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // קישור למשתמש (בעלים)
+  userId           String?
+  user             User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  // קישור למערכה (Campaign)
+  campaignId       String?
+  campaign         Campaign? @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 }

@@ -1,172 +1,197 @@
-// backend/src/controllers/characterController.ts
 import { Request, Response } from "express";
 import { prisma } from "../config/db.js";
-import axios from "axios";
+import { fetchRawBeyondCharacter } from "../services/dndBeyondService.js";
 
 interface BeyondParams {
-  beyondId: string;
+  beyondId?: string;
+  id?: string;
 }
 
-// פונקציית תרגום מנתוני D&D Beyond לפרונט-אנד
-const parseBeyondToFrontend = (rawData: any) => {
-  const primaryClass = rawData.classes?.[0];
-  const totalLevel: number =
-    rawData.classes?.reduce(
-      (acc: number, c: { level?: number }) => acc + (c.level || 0),
-      0
-    ) || 1;
-
-  const baseHp = rawData.baseHitPoints || 10;
-  const bonusHp = rawData.bonusHitPoints || 0;
-  const overrideHp = rawData.overrideHitPoints;
-  const calculatedMaxHp = overrideHp || (baseHp + bonusHp);
-  const currentHp = calculatedMaxHp - (rawData.removedHitPoints || 0);
-
-  // חילוץ ה-Stats
-  const rawStats = rawData.stats || [];
-  const getStatVal = (id: number) => rawStats.find((s: any) => s.id === id)?.value ?? 10;
-
-  const stats = {
-    str: getStatVal(1),
-    dex: getStatVal(2),
-    con: getStatVal(3),
-    int: getStatVal(4),
-    wis: getStatVal(5),
-    cha: getStatVal(6),
-  };
-
-  const proficiencyBonus = Math.ceil(1 + totalLevel / 4);
-  const wisMod = Math.floor((stats.wis - 10) / 2);
-  const intMod = Math.floor((stats.int - 10) / 2);
-
-  return {
-    beyondId: String(rawData.id),
-    dndCharacterId: String(rawData.id),
-    name: rawData.name || "Unnamed Character",
-    player: "לא הוגדר",
-    class: primaryClass?.definition?.name || "Unknown Class",
-    subclass: primaryClass?.subclassDefinition?.name || null,
-    race: rawData.race?.fullName || rawData.race?.baseName || "Unknown Race",
-    level: totalLevel,
-    hp: {
-      current: currentHp,
-      max: calculatedMaxHp,
-      temp: rawData.temporaryHitPoints || 0,
-    },
-    ac: rawData.overrideStats?.[0]?.value || 10,
-    speed: rawData.race?.weightSpeeds?.normal?.walk || 30,
-    initiative: Math.floor((stats.dex - 10) / 2),
-    avatarUrl: rawData.decorations?.avatarUrl || rawData.avatarUrl || "",
-    proficiencyBonus,
-    passiveSkills: {
-      perception: 10 + wisMod,
-      investigation: 10 + intMod,
-      insight: 10 + wisMod,
-    },
-    stats,
-    inventory: rawData.inventory || [],
-    spells: rawData.spells || {},
-    rawBeyondStats: rawData.stats || [] // לשמירה ב-DB במידת הצורך
-  };
-};
-
-// -------------------------------------------------------------------
-// 1. קבלת נתונים בלייב מ-D&D Beyond (ללא שמירה/פנייה ל-DB!)
-// -------------------------------------------------------------------
+// 1. קריאת Live בלבד מול D&D Beyond (ללא שמירה ב-DB)
 export const getBeyondCharacterLive = async (
   req: Request<BeyondParams>,
   res: Response
 ): Promise<Response> => {
   try {
-    const { beyondId } = req.params;
+    const beyondId = Array.isArray(req.params.beyondId)
+      ? req.params.beyondId[0]
+      : req.params.beyondId;
 
     if (!beyondId) {
-      return res.status(400).json({ message: "beyondId parameter is required" });
+      return res.status(400).json({ message: "beyondId is required" });
     }
 
-    const response = await axios.get(
-      `https://character-service.dndbeyond.com/character/v5/character/${beyondId}`
-    );
-
-    const rawData = response.data?.data;
-    if (!rawData) {
-      return res.status(404).json({ message: "Character not found on D&D Beyond" });
-    }
-
-    // המרה למבנה שהפרונט מבין והחזרה מיידית
-    const liveCharacter = parseBeyondToFrontend(rawData);
+    const liveCharacter = await fetchRawBeyondCharacter(beyondId);
     return res.status(200).json(liveCharacter);
 
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    console.error("Error fetching live character from Beyond:", errorMessage);
-    return res.status(500).json({ message: "Failed to fetch live character data", error: errorMessage });
+    return res.status(500).json({ message: "Failed to fetch live character", error: errorMessage });
   }
 };
 
-// -------------------------------------------------------------------
-// 2. שמירה / סנכרון ל-DB (לכפתור שמירה בסוף סשן או הוספת דמות)
-// -------------------------------------------------------------------
+// 2. שמירה / סנכרון דמות מ-D&D Beyond ל-DB (כולל שיוך למערכה)
 export const saveOrSyncBeyondCharacter = async (
   req: Request<BeyondParams>,
   res: Response
 ): Promise<Response> => {
   try {
-    const { beyondId } = req.params;
+    const beyondId = Array.isArray(req.params.beyondId) 
+      ? req.params.beyondId[0] 
+      : req.params.beyondId;
+
+    const { campaignId } = req.body;
 
     if (!beyondId) {
-      return res.status(400).json({ message: "beyondId parameter is required" });
+      return res.status(400).json({ message: "beyondId is required" });
     }
 
-    // מושכים את המידע הטרי ביותר מ-Beyond
-    const response = await axios.get(
-      `https://character-service.dndbeyond.com/character/v5/character/${beyondId}`
-    );
+    // שואבים ומעבדים את הנתונים מ-D&D Beyond
+    const parsed = await fetchRawBeyondCharacter(beyondId);
 
-    const rawData = response.data?.data;
-    if (!rawData) {
-      return res.status(404).json({ message: "Character not found on D&D Beyond" });
-    }
-
-    const parsed = parseBeyondToFrontend(rawData);
-
-    // מכינים אובייקט להכנסה/עדכון ב-Prisma DB
-    const dbPayload = {
+    // אובייקט הנתונים הבסיסי
+    const basePayload = {
       beyondId: parsed.beyondId,
       name: parsed.name,
+      player: parsed.player || "Player",
       avatarUrl: parsed.avatarUrl,
       race: parsed.race,
       className: parsed.class,
-      subclass: parsed.subclass,
       level: parsed.level,
+      proficiencyBonus: parsed.proficiencyBonus,
+      initiative: parsed.initiative,
       currentHp: parsed.hp.current,
       maxHp: parsed.hp.max,
       tempHp: parsed.hp.temp,
       armorClass: parsed.ac,
       speed: parsed.speed,
       stats: {
-        stats: parsed.rawBeyondStats,
+        stats: parsed.stats,
+        passiveSkills: parsed.passiveSkills
       },
       equipment: parsed.inventory,
       spells: parsed.spells,
+      features: parsed.features,
     };
 
-    // Upsert: אם הדמות קיימת ב-DB יעדכן אותה, אם לא - ייצור חדשה
     const savedCharacter = await prisma.character.upsert({
       where: { beyondId: String(beyondId) },
-      update: dbPayload,
-      create: dbPayload,
+      // בעדכון: מעדכנים את campaignId אך ורק אם משהו מפורש נשלח ב-body
+      update: {
+        ...basePayload,
+        ...(campaignId !== undefined ? { campaignId } : {})
+      },
+      // ביצירה: מגדירים את ה-campaignId או שמים null אם עדיין אין קמפיין
+      create: {
+        ...basePayload,
+        campaignId: campaignId || null,
+      },
     });
 
-    console.log(`Character ${beyondId} successfully saved/updated in Database.`);
+    console.log(`Character ${beyondId} successfully saved to DB (Campaign: ${savedCharacter.campaignId || 'None'}).`);
+
+    // חילוץ בטוח של ה-JSON שמאוחסן ב-DB
+    const statsJson = (savedCharacter.stats as any) || {};
+
+    // בניית האובייקט המדויק שהפרונט-אנד מצפה לקבל
+    const formattedCharacter = {
+      id: savedCharacter.id,
+      beyondId: savedCharacter.beyondId,
+      dndCharacterId: savedCharacter.beyondId,
+      campaignId: savedCharacter.campaignId,
+      name: savedCharacter.name,
+      player: savedCharacter.player,
+      class: savedCharacter.className,
+      race: savedCharacter.race,
+      level: savedCharacter.level,
+      proficiencyBonus: savedCharacter.proficiencyBonus,
+      initiative: savedCharacter.initiative,
+      avatarUrl: savedCharacter.avatarUrl || "",
+      hp: {
+        current: savedCharacter.currentHp ?? 10,
+        max: savedCharacter.maxHp ?? 10,
+        temp: savedCharacter.tempHp ?? 0,
+      },
+      ac: savedCharacter.armorClass ?? 10,
+      speed: savedCharacter.speed ?? 30,
+      stats: statsJson.stats || {},
+      passiveSkills: statsJson.passiveSkills || {},
+      inventory: savedCharacter.equipment || [],
+      spells: savedCharacter.spells || [],
+      features: savedCharacter.features || [],
+    };
+
     return res.status(200).json({
       message: "Character successfully saved to Database",
-      character: parsed
+      character: formattedCharacter
     });
 
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     console.error("Error saving character to DB:", errorMessage);
     return res.status(500).json({ message: "Failed to save character to DB", error: errorMessage });
+  }
+};
+
+// 3. קבלת כל הדמויות מ-DB
+export const getAllCharacters = async (_req: Request, res: Response): Promise<Response> => {
+  try {
+    const dbCharacters = await prisma.character.findMany();
+
+    const formattedCharacters = dbCharacters.map((char: any) => {
+      const statsJson = char.stats || {};
+      
+      return {
+        id: char.id,
+        beyondId: char.beyondId,
+        dndCharacterId: char.beyondId,
+        campaignId: char.campaignId,
+        name: char.name,
+        player: char.player,
+        class: char.className,
+        race: char.race,
+        level: char.level,
+        proficiencyBonus: char.proficiencyBonus,
+        initiative: char.initiative,
+        avatarUrl: char.avatarUrl || "",
+        hp: {
+          current: char.currentHp ?? 10,
+          max: char.maxHp ?? 10,
+          temp: char.tempHp ?? 0,
+        },
+        ac: char.armorClass ?? 10,
+        speed: char.speed ?? 30,
+        stats: statsJson.stats || {},
+        passiveSkills: statsJson.passiveSkills || {},
+        inventory: char.equipment || [],
+        spells: char.spells || [],
+        features: char.features || [],
+      };
+    });
+
+    return res.status(200).json(formattedCharacters);
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    return res.status(500).json({ message: "Failed to fetch characters from DB", error: errorMessage });
+  }
+};
+
+// 4. מחיקת דמות מ-DB לפי ID
+export const deleteCharacter = async (req: Request<BeyondParams>, res: Response): Promise<Response> => {
+  try {
+    const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+
+    if (!id) {
+      return res.status(400).json({ message: "Character ID is required" });
+    }
+
+    await prisma.character.delete({
+      where: { id },
+    });
+
+    return res.status(200).json({ message: "Character deleted successfully" });
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    return res.status(500).json({ message: "Failed to delete character", error: errorMessage });
   }
 };

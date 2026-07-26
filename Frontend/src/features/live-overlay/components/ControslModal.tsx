@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
-import type { Character } from '../../../types/character';
-import { AddCharacterModal } from './AddCharacterModal';
+import React, { useState } from "react";
+import type { Character } from "../../../types/character";
+import { AddCharacterModal } from "./AddCharacterModal";
 
 interface DmControlsModalProps {
   isOpen: boolean;
   onClose: () => void;
+  campaignId?: string;
   characters: Character[];
   onAddCharacter: (newChar: Character) => void;
   onRemoveCharacter: (id: string) => void;
@@ -14,12 +15,13 @@ interface DmControlsModalProps {
 export const DmControlsModal: React.FC<DmControlsModalProps> = ({
   isOpen,
   onClose,
+  campaignId,
   characters,
   onAddCharacter,
   onRemoveCharacter,
   onUpdateBg,
 }) => {
-  const [bgInput, setBgInput] = useState('');
+  const [bgInput, setBgInput] = useState("");
   const [isAddCharOpen, setIsAddCharOpen] = useState(false);
 
   if (!isOpen) return null;
@@ -28,7 +30,7 @@ export const DmControlsModal: React.FC<DmControlsModalProps> = ({
     e.preventDefault();
     if (bgInput.trim()) {
       onUpdateBg(bgInput.trim());
-      setBgInput('');
+      setBgInput("");
     }
   };
 
@@ -75,7 +77,9 @@ export const DmControlsModal: React.FC<DmControlsModalProps> = ({
                       className="w-8 h-8 rounded-lg object-cover border border-amber-500/40"
                     />
                     <div>
-                      <p className="text-xs font-bold text-slate-200">{char.name}</p>
+                      <p className="text-xs font-bold text-slate-200">
+                        {char.name}
+                      </p>
                       <p className="text-[10px] text-slate-400">
                         {char.class} • Lvl {char.level} ({char.player})
                       </p>
@@ -129,6 +133,7 @@ export const DmControlsModal: React.FC<DmControlsModalProps> = ({
       <AddCharacterModal
         isOpen={isAddCharOpen}
         onClose={() => setIsAddCharOpen(false)}
+        campaignId={campaignId} // 👈 הנה התיקון! מעבירים את ה-campaignId הלאה למודאל
         onAddCharacter={(newChar) => {
           onAddCharacter(newChar);
           setIsAddCharOpen(false);
