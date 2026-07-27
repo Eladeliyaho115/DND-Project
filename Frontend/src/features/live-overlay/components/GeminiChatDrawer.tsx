@@ -12,13 +12,13 @@ export const GeminiChatDrawer: React.FC<GeminiChatDrawerProps> = ({
   onClose,
   campaignId,
 }) => {
-  // הפעלת ה-Hook עם ה-campaignId המעודכן
   const {
     messages,
     input,
     setInput,
     loading,
     sendMessage,
+    triggerManualAISummary, // 👈 משיכים את פונקציית הסיכום היזום
     messagesEndRef,
   } = useGeminiChat(campaignId);
 
@@ -74,8 +74,17 @@ export const GeminiChatDrawer: React.FC<GeminiChatDrawerProps> = ({
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Quick Prompts */}
+      {/* Quick Prompts & Actions */}
       <div className="p-2 border-t border-slate-800/60 bg-slate-950/30 flex gap-2 overflow-x-auto text-[11px]">
+        {/* כפתור סיכום יזום ל-PDF */}
+        <button
+          onClick={triggerManualAISummary}
+          disabled={loading}
+          className="bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 font-semibold px-2.5 py-1 rounded-lg border border-amber-500/40 whitespace-nowrap transition flex items-center gap-1.5 disabled:opacity-50"
+        >
+          📜 סכם שיחה ל-PDF
+        </button>
+
         <button
           onClick={() => sendMessage('איך עובד Grapple ב-5e?')}
           className="bg-slate-800 hover:bg-slate-700 text-amber-300/80 px-2.5 py-1 rounded-lg border border-slate-700 whitespace-nowrap transition"

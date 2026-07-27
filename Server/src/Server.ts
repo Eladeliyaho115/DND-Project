@@ -5,6 +5,7 @@ import characterRoutes from './routes/characterRoutes.js';
 import campaignRoutes from "./routes/campaignRoutes.js";
 import aiRoutes from './routes/aiRoutes.js';
 import characterSheetPDFRoutes from './routes/characterSheetPDFRoutes.js';
+import summaryRoutes from './routes/summaryRoutes.js';
 
 
 const app = express();
@@ -24,6 +25,7 @@ app.use('/api/characters', characterRoutes);
 app.use('/api/campaigns', campaignRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/character-sheets', characterSheetPDFRoutes);
+app.use('/api/summaries', summaryRoutes);
 
 app.listen(PORT, () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`);

@@ -36,7 +36,7 @@ model Campaign {
   userId      String?
   user        User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
   characters  Character[]
-
+  summaries  Summary[]
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
 }
@@ -97,7 +97,9 @@ model CharacterSheet {
 
   @@unique([campaignId, name]) // מקור יחידי לדמות אחת בקמפיין
 }
-
+// ==========================================
+// campaign Summary
+// ==========================================
 model Summary {
   id          String   @id @default(uuid())
   campaignId  String
