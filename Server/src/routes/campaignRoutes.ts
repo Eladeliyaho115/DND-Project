@@ -1,12 +1,12 @@
 import { Router } from "express";
-import { 
-  getCampaignById, 
-  getAllCampaigns, 
+import {
+  getCampaignById,
+  getAllCampaigns,
   updateCampaignBackground,
   createCampaign,
   updateCampaignStatus,
   updateCampaign, // 👈 1. ייבוא
-  deleteCampaign
+  deleteCampaign,
 } from "../controllers/campaignController.js";
 
 const router = Router();
