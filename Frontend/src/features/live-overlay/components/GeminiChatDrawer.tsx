@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import ReactMarkdown from 'react-markdown';
 import { useGeminiChat } from '../../../hooks/useGeminiChat';
 
 interface GeminiChatDrawerProps {
@@ -116,10 +117,14 @@ export const GeminiChatDrawer: React.FC<GeminiChatDrawerProps> = ({
                 className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-xs leading-relaxed ${
                   msg.sender === 'user'
                     ? 'bg-amber-500 text-slate-950 font-medium rounded-br-none'
-                    : 'bg-slate-800 text-slate-100 border border-slate-700/60 rounded-bl-none'
+                    : 'bg-slate-800 text-slate-100 border border-slate-700/60 rounded-bl-none prose prose-invert prose-xs max-w-none'
                 }`}
               >
-                <p className="whitespace-pre-wrap">{msg.text}</p>
+                {msg.sender === 'user' ? (
+                  <p className="whitespace-pre-wrap">{msg.text}</p>
+                ) : (
+                  <ReactMarkdown>{msg.text}</ReactMarkdown>
+                )}
               </div>
             </div>
           ))}

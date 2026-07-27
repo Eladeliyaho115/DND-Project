@@ -6,6 +6,7 @@ import campaignRoutes from "./routes/campaignRoutes.js";
 import aiRoutes from './routes/aiRoutes.js';
 import characterSheetPDFRoutes from './routes/characterSheetPDFRoutes.js';
 import summaryRoutes from './routes/summaryRoutes.js';
+import nodePath from "path";
 
 
 const app = express();
@@ -26,6 +27,7 @@ app.use('/api/campaigns', campaignRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/character-sheets', characterSheetPDFRoutes);
 app.use('/api/summaries', summaryRoutes);
+app.use("/uploads", express.static(nodePath.join(process.cwd(), "uploads")));
 
 app.listen(PORT, () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`);

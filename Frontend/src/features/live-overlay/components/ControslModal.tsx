@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import type { Character } from "../../../types/character";
 import { AddCharacterModal } from "./AddCharacterModal";
 import { uploadCharacterSheetPDF } from "../../../services/characterSheetPDFService";
-import { CampaignSummaries } from "./CampaignSummaries"; // 👈 ייבוא קומפוננטת הסיכומים
+import { CampaignSummaries } from "./CampaignSummaries";
 
 interface ControlsModalProps {
   isOpen: boolean;

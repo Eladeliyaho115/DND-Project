@@ -22,7 +22,7 @@ export const createPDFBuffer = (title: string, markdownText: string): Promise<Bu
       doc
         .font('Helvetica-Bold')
         .fontSize(20)
-        .fillColor('#d97706') // צבע זהב/אמבר
+        .fillColor('#d97706')
         .text(title, { align: 'center' });
       
       doc.moveDown(0.5);
@@ -43,26 +43,23 @@ export const createPDFBuffer = (title: string, markdownText: string): Promise<Bu
       lines.forEach((line) => {
         const trimmed = line.trim();
 
-        // שורה ריקה -> רווח
         if (!trimmed) {
           doc.moveDown(0.4);
           return;
         }
 
-        // כותרות (### או ## או #)
         if (trimmed.startsWith('#')) {
           const headerText = trimmed.replace(/^#+\s*/, '').replace(/\*\*/g, '');
           doc.moveDown(0.5);
           doc
             .font('Helvetica-Bold')
             .fontSize(13)
-            .fillColor('#92400e') // חום/זהב כהה
+            .fillColor('#92400e')
             .text(headerText);
           doc.moveDown(0.2);
           return;
         }
 
-        // רשימות בולטים (* או -)
         let formattedLine = trimmed;
         let isBullet = false;
 
@@ -71,14 +68,12 @@ export const createPDFBuffer = (title: string, markdownText: string): Promise<Bu
           formattedLine = trimmed.replace(/^[\*\-]\s*/, '');
         }
 
-        // ניקוי כוכביות הדגשה מתוך הטקסט
         const cleanContent = formattedLine.replace(/\*\*/g, '');
 
-        // הגדרת פונט וצבע לטקסט הרגיל
         doc
           .font('Helvetica')
           .fontSize(10)
-          .fillColor('#1e293b'); // אפור כהה/כחול נייבי
+          .fillColor('#1e293b');
 
         if (isBullet) {
           doc.text(`•  ${cleanContent}`, {
@@ -99,18 +94,19 @@ export const createPDFBuffer = (title: string, markdownText: string): Promise<Bu
   });
 };
 
-// 1. 👈 יצוא פונקציית הסיכום הידני (הייתה חסרה!)
-export const createManualSummary = async (campaignId: string, content: string) => {
+// 1. פונקציית סיכום ידני מאוחדת (תומכת בטקסט חופשי, קובץ PDF, או שניהם)
+export const createManualSummary = async (campaignId: string, content?: string, pdfUrl?: string) => {
   return await prisma.summary.create({
     data: {
       campaignId,
-      content,
+      content: content || (pdfUrl ? "מצורף קובץ PDF של סיכום הקמפיין להלן." : "סיכום ידני"),
       createdVia: 'MANUAL',
+      pdfUrl: pdfUrl || null,
     },
   });
 };
 
-// 2. יצוא פונקציית סיכום ה-AI
+// 2. פונקציית סיכום ה-AI (יוצרת PDF אוטומטי ושומרת ב-DB)
 export const generateAISummary = async (
   campaignId: string,
   history: { sender: string; text: string }[],
@@ -140,7 +136,7 @@ ${history.map((m) => `${m.sender.toUpperCase()}: ${m.text}`).join('\n')}
     console.error('PDFKit generation error (continuing without PDF):', pdfErr);
   }
 
-  const savedSummary = await prisma.summary.create({
+  return await prisma.summary.create({
     data: {
       campaignId,
       content: summaryText,
@@ -148,14 +144,19 @@ ${history.map((m) => `${m.sender.toUpperCase()}: ${m.text}`).join('\n')}
       pdfUrl: pdfBase64 || null,
     },
   });
-
-  return savedSummary;
 };
 
-// שליפת כל הסיכומים המשויכים לקמפיין
+// 3. שליפת כל הסיכומים המשויכים לקמפיין
 export const getSummariesByCampaign = async (campaignId: string) => {
   return await prisma.summary.findMany({
     where: { campaignId },
-    orderBy: { createdAt: 'desc' }, // החדש ביותר יופיע ראשון
+    orderBy: { createdAt: 'desc' },
+  });
+};
+
+// 4. מחיקת סיכום לפי ID
+export const deleteSummaryById = async (summaryId: string) => {
+  return await prisma.summary.delete({
+    where: { id: summaryId },
   });
 };
