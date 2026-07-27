@@ -1,7 +1,7 @@
-import React from 'react';
-import type { Character } from '../../../types/character';
-import { useDndCharacter } from '../../../hooks/useDndCharacter';
-import styles from '@styles/CharacterCard.module.css';
+import React from "react";
+import type { Character } from "../../../types/character";
+import { useDndCharacter } from "../../../hooks/useDndCharacter";
+import styles from "@styles/CharacterCard.module.css";
 
 interface CharacterCardProps {
   character: Character;
@@ -14,7 +14,7 @@ interface CharacterCardProps {
 
 // חישוב Modifier מתוך ערך Attribute
 const getMod = (val?: number): string => {
-  if (val === undefined || val === null) return '+0';
+  if (val === undefined || val === null) return "+0";
   const mod = Math.floor((val - 10) / 2);
   return mod >= 0 ? `+${mod}` : `${mod}`;
 };
@@ -33,16 +33,18 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({
   const characterId =
     initialCharacter?.beyondId ||
     (initialCharacter as { beyondId?: string }).beyondId ||
-    '';
+    "";
 
   // 2. סנכרון בלייב מול D&D Beyond
-  const { character: liveCharacter, loading, error } = useDndCharacter(
-    characterId,
-    5000
-  );
+  const {
+    character: liveCharacter,
+    loading,
+    error,
+  } = useDndCharacter(characterId, 5000);
 
   // 3. קביעת האובייקט להצגה (Live תמיד קודם ל-Initial)
-  const displayChar = characterId && liveCharacter ? liveCharacter : initialCharacter;
+  const displayChar =
+    characterId && liveCharacter ? liveCharacter : initialCharacter;
 
   // 4. חילוץ נתונים וחישובים מרוכזים
   const stats = displayChar?.stats || {};
@@ -54,9 +56,9 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({
   const hpPercentage = Math.max(0, Math.min(100, (currentHp / maxHp) * 100));
 
   const getHpColorClass = () => {
-    if (hpPercentage > 50) return styles?.hpHigh || 'bg-emerald-500';
-    if (hpPercentage > 20) return styles?.hpMedium || 'bg-amber-500';
-    return styles?.hpLow || 'bg-rose-600 animate-pulse';
+    if (hpPercentage > 50) return styles?.hpHigh || "bg-emerald-500";
+    if (hpPercentage > 20) return styles?.hpMedium || "bg-amber-500";
+    return styles?.hpLow || "bg-rose-600 animate-pulse";
   };
 
   // 5. חישוב Proficiency & Passive Skills
@@ -72,12 +74,12 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({
   const passiveInsight = displayChar?.passiveSkills?.insight ?? 10 + wisMod;
 
   const statList = [
-    { label: 'STR', val: stats.str },
-    { label: 'DEX', val: stats.dex },
-    { label: 'CON', val: stats.con },
-    { label: 'INT', val: stats.int },
-    { label: 'WIS', val: stats.wis },
-    { label: 'CHA', val: stats.cha },
+    { label: "STR", val: stats.str },
+    { label: "DEX", val: stats.dex },
+    { label: "CON", val: stats.con },
+    { label: "INT", val: stats.int },
+    { label: "WIS", val: stats.wis },
+    { label: "CHA", val: stats.cha },
   ];
 
   return (
@@ -89,7 +91,7 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({
             {displayChar?.avatarUrl ? (
               <img
                 src={displayChar.avatarUrl}
-                alt={displayChar.name || 'Character'}
+                alt={displayChar.name || "Character"}
                 className="w-full h-full object-cover"
               />
             ) : (
@@ -126,7 +128,7 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between gap-1">
             <h3 className="text-lg font-bold text-white truncate">
-              {displayChar?.name || 'דמות ללא שם'}
+              {displayChar?.name || "דמות ללא שם"}
             </h3>
 
             {/* אינדיקטור לייב מ-D&D Beyond */}
@@ -134,23 +136,25 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({
               <span
                 className={`text-[9px] font-bold px-1.5 py-0.5 rounded border shrink-0 ${
                   loading
-                    ? 'text-amber-400 border-amber-500/30 animate-pulse'
+                    ? "text-amber-400 border-amber-500/30 animate-pulse"
                     : error
-                    ? 'text-rose-400 border-rose-500/30'
-                    : 'text-emerald-400 border-emerald-500/30'
+                      ? "text-rose-400 border-rose-500/30"
+                      : "text-emerald-400 border-emerald-500/30"
                 }`}
-                title={error || (loading ? 'Syncing...' : 'Live D&D Beyond')}
+                title={error || (loading ? "Syncing..." : "Live D&D Beyond")}
               >
-                {loading ? 'SYNC' : error ? 'OFF' : 'LIVE'}
+                {loading ? "SYNC" : error ? "OFF" : "LIVE"}
               </span>
             )}
           </div>
-
           <p className="text-sm text-indigo-400 font-medium truncate">
-            {displayChar?.class || 'לא הוגדר מקצוע'}
+            {displayChar?.class || "לא הוגדר מקצוע"}
           </p>
+          <div className={styles.subtitle}>
+            {displayChar.race && <span>{displayChar.race} </span>}
+          </div>
           <p className="text-xs text-slate-400 truncate">
-            שחקן: {displayChar?.player || 'לא הוגדר'}
+            Player: {displayChar?.player || "לא הוגדר"}
           </p>
         </div>
       </div>
@@ -247,7 +251,9 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({
             key={stat.label}
             className="bg-slate-950/60 rounded py-1 border border-slate-800/40"
           >
-            <div className="text-[9px] text-slate-400 font-bold">{stat.label}</div>
+            <div className="text-[9px] text-slate-400 font-bold">
+              {stat.label}
+            </div>
             <div className="text-xs font-bold text-slate-200">
               {getMod(stat.val)}
             </div>
@@ -264,7 +270,9 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({
         <div className="w-px h-3 bg-slate-800" />
         <div className="flex items-center gap-1" title="Passive Investigation">
           <span className="text-slate-400 text-[11px]">🔍 Inv:</span>
-          <span className="font-bold text-slate-200">{passiveInvestigation}</span>
+          <span className="font-bold text-slate-200">
+            {passiveInvestigation}
+          </span>
         </div>
         <div className="w-px h-3 bg-slate-800" />
         <div className="flex items-center gap-1" title="Passive Insight">

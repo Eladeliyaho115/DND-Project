@@ -1,10 +1,16 @@
-import React, { useState, useEffect } from 'react';
-import type { Campaign } from '../../types/campaign';
-import type { Character } from '../../types/character';
-import { CharacterCard } from './components/CharacterCard';
-import { ControlsModal } from './components/ControslModal';
-import { GeminiChatDrawer } from './components/GeminiChatDrawer';
-import { deleteCharacterFromDb, updateCampaignBackground } from '../../services/dndBeyondService';
+import React, { useState, useEffect } from "react";
+import type { Campaign } from "../../types/campaign";
+import type { Character } from "../../types/character";
+import { CharacterCard } from "./components/CharacterCard";
+import { ControlsModal } from "./components/ControslModal";
+import { GeminiChatDrawer } from "./components/GeminiChatDrawer";
+import { DiceRoller } from "./components/DiceRoller"; // 👈 ייבוא ה-DiceRoller
+import {
+  deleteCharacterFromDb,
+  updateCampaignBackground,
+} from "../../services/dndBeyondService";
+
+import styles from "@styles/LiveOverlay.module.css";
 
 interface LiveOverlayProps {
   campaign: Campaign;
@@ -12,11 +18,20 @@ interface LiveOverlayProps {
   onUpdateBg: (campaignId: string, newBgUrl: string) => void;
 }
 
-export const LiveOverlay: React.FC<LiveOverlayProps> = ({ campaign, onBack, onUpdateBg }) => {
+export const LiveOverlay: React.FC<LiveOverlayProps> = ({
+  campaign,
+  onBack,
+  onUpdateBg,
+}) => {
   const [isAdminOpen, setIsAdminOpen] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
-  const [characters, setCharacters] = useState<Character[]>(campaign.characters);
+  const [characters, setCharacters] = useState<Character[]>(
+    campaign.characters,
+  );
   const [currentBg, setCurrentBg] = useState<string>(campaign.bgUrl);
+
+  // הוספת State לטריגר של גלגול הקוביות
+  const [selectedNotation, setSelectedNotation] = useState<string | null>(null);
 
   // סנכרון ה-State המקומי אם ה-Campaign משתנה מבחוץ
   useEffect(() => {
@@ -52,7 +67,7 @@ export const LiveOverlay: React.FC<LiveOverlayProps> = ({ campaign, onBack, onUp
   const handleOpenDndBeyond = (character: Character) => {
     const charBeyondId = character.beyondId;
     if (!charBeyondId) {
-      alert('לדמות זו אין מזהה D&D Beyond מוגדר.');
+      alert("לדמות זו אין מזהה D&D Beyond מוגדר.");
       return;
     }
 
@@ -66,13 +81,13 @@ export const LiveOverlay: React.FC<LiveOverlayProps> = ({ campaign, onBack, onUp
       `height=${height}`,
       `left=${left}`,
       `top=${top}`,
-      'resizable=yes',
-      'scrollbars=yes',
-      'status=no',
-      'menubar=no',
-      'toolbar=no',
-      'location=no',
-    ].join(',');
+      "resizable=yes",
+      "scrollbars=yes",
+      "status=no",
+      "menubar=no",
+      "toolbar=no",
+      "location=no",
+    ].join(",");
 
     const url = `https://www.dndbeyond.com/characters/${charBeyondId}`;
     const windowName = `dnd_char_${charBeyondId}`;
@@ -84,35 +99,36 @@ export const LiveOverlay: React.FC<LiveOverlayProps> = ({ campaign, onBack, onUp
   };
 
   return (
-    <div className="relative w-full h-screen bg-slate-950 text-slate-100 overflow-hidden font-sans select-none">
+    <div className={styles.container}>
       {/* Dynamic Background */}
       <div
-        className="absolute inset-0 bg-cover bg-center transition-all duration-700 ease-in-out"
+        className={styles.bgImage}
         style={{ backgroundImage: `url(${currentBg})` }}
       >
-        <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/40 to-slate-950/80" />
+        <div className={styles.bgGradient} />
       </div>
 
+      {/* 3D Dice Layer (רץ מעל הרקע אך מתחת למודאלים/צ'אט) */}
+      <DiceRoller
+        triggerRoll={selectedNotation}
+        onRollEnd={() => setSelectedNotation(null)}
+      />
+
       {/* Main UI */}
-      <div className="relative z-10 w-full h-full flex flex-col justify-between p-6">
+      <div className={styles.content}>
         {/* Header */}
-        <header className="flex justify-between items-center border-b border-amber-500/30 pb-4 bg-slate-900/60 backdrop-blur-md px-6 rounded-xl border border-amber-500/20 shadow-2xl">
-          <div className="flex items-center gap-4">
-            <button
-              onClick={onBack}
-              className="text-xs text-slate-400 hover:text-amber-400 bg-slate-800/80 px-3 py-1.5 rounded-lg border border-slate-700 transition"
-            >
+        <header className={styles.header}>
+          <div className={styles.headerLeft}>
+            <button onClick={onBack} className={styles.btnBack}>
               ← Back to Hub
             </button>
-            <h1 className="text-2xl md:text-3xl font-bold tracking-wider text-amber-400 uppercase drop-shadow">
-              {campaign.title}
-            </h1>
+            <h1 className={styles.title}>{campaign.title}</h1>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className={styles.headerRight}>
             <button
               onClick={() => setIsChatOpen((prev) => !prev)}
-              className="text-xs bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 px-3 py-1.5 rounded-lg transition font-medium flex items-center gap-1.5 shadow-lg"
+              className={styles.btnGemini}
             >
               <span>✨</span>
               <span>Gemini AI</span>
@@ -120,7 +136,7 @@ export const LiveOverlay: React.FC<LiveOverlayProps> = ({ campaign, onBack, onUp
 
             <button
               onClick={() => setIsAdminOpen(true)}
-              className="text-xs bg-slate-800/80 hover:bg-slate-700/80 text-slate-300 border border-slate-700 px-3 py-1.5 rounded-lg transition font-medium"
+              className={styles.btnControls}
             >
               ⚙ DM Controls
             </button>
@@ -128,14 +144,29 @@ export const LiveOverlay: React.FC<LiveOverlayProps> = ({ campaign, onBack, onUp
         </header>
 
         {/* Center Space */}
-        <main className="flex-1" />
+        <main className={styles.mainSpace} />
+
+        {/* Quick Roll Bar (סרגל כפתורי קוביות צף) */}
+        <div className={styles.quickRollBar}>
+          <span className={styles.rollLabel}>🎲 Roll Dice:</span>
+
+          {["1d20", "1d12", "1d10", "1d8", "1d6", "1d4"].map((notation) => (
+            <button
+              key={notation}
+              onClick={() => setSelectedNotation(notation)}
+              className={styles.btnRoll}
+            >
+              {notation}
+            </button>
+          ))}
+        </div>
 
         {/* Character Cards Footer */}
-        <footer className="flex items-center justify-center gap-6 max-w-6xl mx-auto w-full overflow-x-auto pb-2">
+        <footer className={styles.footer}>
           {characters.map((char) => (
-            <CharacterCard 
-              key={char.id || char.beyondId} 
-              character={char} 
+            <CharacterCard
+              key={char.id || char.beyondId}
+              character={char}
               onOpenDetails={handleOpenDndBeyond}
             />
           ))}

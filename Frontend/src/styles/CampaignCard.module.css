@@ -21,7 +21,9 @@
 
 .activeCard {
   border-color: rgba(245, 158, 11, 0.5);
-  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.2), 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+  box-shadow:
+    0 0 0 2px rgba(245, 158, 11, 0.2),
+    0 25px 50px -12px rgba(0, 0, 0, 0.5);
 }
 
 .activeCard:hover {
@@ -44,7 +46,12 @@
 .gradientOverlay {
   position: absolute;
   inset: 0;
-  background: linear-gradient(to top, #020617, rgba(2, 6, 23, 0.4), transparent);
+  background: linear-gradient(
+    to top,
+    #020617,
+    rgba(2, 6, 23, 0.4),
+    transparent
+  );
 }
 
 .content {
@@ -120,6 +127,7 @@
   text-transform: uppercase;
   letter-spacing: 0.05em;
   background: linear-gradient(to right, #fef3c7, #fde68a, #f59e0b);
+  background-clip: text;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   margin-bottom: 0.5rem;
@@ -192,6 +200,11 @@
 }
 
 @keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: .5; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
 }
