@@ -85,3 +85,25 @@ model Character {
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 }
+// ==========================================
+// Character Sheet
+// ==========================================
+model CharacterSheet {
+  id          String   @id @default(uuid())
+  campaignId  String
+  name        String   // שם הדמות (למשל: "Gorgar")
+  pdfData     Bytes    // ה-PDF נשמר ישירות ב-DB כ-Buffer
+  updatedAt   DateTime @updatedAt
+
+  @@unique([campaignId, name]) // מקור יחידי לדמות אחת בקמפיין
+}
+
+model Summary {
+  id          String   @id @default(uuid())
+  campaignId  String
+  campaign    Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  content     String   @db.Text
+  createdVia  String   // 'MANUAL' | 'ON_DEMAND' | 'AUTO'
+  pdfUrl      String?  // במידה ונשמר כקובץ/נתיב
+  createdAt   DateTime @default(now())
+}

@@ -1,52 +1,33 @@
-import { GoogleGenAI } from "@google/genai";
-
-const apiKey = import.meta.env.VITE_GEMINI_API_KEY || "";
-const ai = new GoogleGenAI({ apiKey });
-
-const SYSTEM_INSTRUCTION = `
-You are an immersive, creative, and epic Dungeon Master (DM) for a D&D 5e campaign.
-- Do NOT act as a rulebook assistant or answer rules questions out-of-character unless explicitly asked.
-- Describe scenes, environments, soundscapes, and NPC reactions in rich detail.
-- Prompt players for their actions and roll requests (e.g., "Roll an Perception check").
-- Adapt to players' actions dynamically and maintain the narrative atmosphere.
-- Respond in the language the player speaks to you (Hebrew or English).
-`;
+import { api } from './../api/axiosClient'; // וודא שהנתיב לקובץ ה-axiosClient נכון
 
 export interface ChatMessage {
-  sender: "user" | "gemini";
+  sender: 'user' | 'gemini';
   text: string;
 }
 
+export interface ChatResponse {
+  text: string;
+}
+
+/**
+ * שולח הודעה והיסטוריית שיחה ל-Backend דרך axiosClient
+ */
 export const sendMessageToGemini = async (
   prompt: string,
   history: ChatMessage[],
+  campaignId?: string
 ): Promise<string> => {
   try {
-    // בניית היסטוריית השיחה
-    const contents = history.map((msg) => ({
-      role: msg.sender === "user" ? "user" : "model",
-      parts: [{ text: msg.text }],
-    }));
-
-    // הוספת ההודעה הנוכחית של המשתמש
-    contents.push({
-      role: "user",
-      parts: [{ text: prompt }],
+    // מכיוון שב-baseURL יש כבר /api, משרשרים רק /ai/chat
+    const response = await api.post<ChatResponse>('/ai/chat', {
+      prompt,
+      history,
+      campaignId,
     });
 
-    // שימוש במודל gemini-2.0-flash או gemini-1.5-flash
-    const response = await ai.models.generateContent({
-      model: "gemini-3.6-flash",
-      contents: contents,
-      config: {
-        systemInstruction: SYSTEM_INSTRUCTION,
-        temperature: 0.7,
-      },
-    });
-
-    return response.text || "לא התקבלה תשובה מ-Gemini.";
+    return response.data.text;
   } catch (error) {
-    console.error("Error calling Gemini API:", error);
+    console.error('Error in sendMessageToGemini service:', error);
     throw error;
   }
 };

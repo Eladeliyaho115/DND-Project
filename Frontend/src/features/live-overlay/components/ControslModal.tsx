@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import type { Character } from "../../../types/character";
 import { AddCharacterModal } from "./AddCharacterModal";
+import { uploadCharacterSheetPDF } from "../../../services/characterSheetPDFService";
 
 interface ControlsModalProps {
   isOpen: boolean;
@@ -23,6 +24,10 @@ export const ControlsModal: React.FC<ControlsModalProps> = ({
 }) => {
   const [bgInput, setBgInput] = useState("");
   const [isAddCharOpen, setIsAddCharOpen] = useState(false);
+  
+  // States חדשים לניהול העלאת ה-PDF
+  const [uploadingCharId, setUploadingCharId] = useState<string | null>(null);
+  const [uploadMessage, setUploadMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   // סגירת המודאל בלחיצה על מקש Escape
   useEffect(() => {
@@ -51,6 +56,37 @@ export const ControlsModal: React.FC<ControlsModalProps> = ({
     }
   };
 
+  // פונקציית הטיפול בהעלאת קובץ ה-PDF
+  const handleFileUpload = async (char: Character, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !campaignId) return;
+
+    if (file.type !== "application/pdf") {
+      setUploadMessage({ type: "error", text: "נא לבחור קובץ PDF בלבד" });
+      return;
+    }
+
+    try {
+      setUploadingCharId(char.id || char.beyondId || null);
+      setUploadMessage(null);
+
+      await uploadCharacterSheetPDF({
+        campaignId,
+        characterName: char.name,
+        file,
+      });
+
+      setUploadMessage({ type: "success", text: `דף הדמות של ${char.name} הועלה בהצלחה!` });
+    } catch (error: any) {
+      console.error("Error uploading sheet:", error);
+      setUploadMessage({ type: "error", text: `שגיאה בהעלאת דף הדמות של ${char.name}` });
+    } finally {
+      setUploadingCharId(null);
+      // איפוס הערך כדי לאפשר העלאת אותו קובץ שוב במידת הצורך
+      e.target.value = ""; 
+    }
+  };
+
   return (
     <>
       {/* Overlay Backdrop - לחיצה מחוץ לחלון סוגרת אותו */}
@@ -76,6 +112,17 @@ export const ControlsModal: React.FC<ControlsModalProps> = ({
               ✕
             </button>
           </div>
+
+          {/* הודעות מערכת על העלאת PDF */}
+          {uploadMessage && (
+            <div className={`mb-4 p-2 text-xs rounded-lg text-center border ${
+              uploadMessage.type === 'success' 
+                ? 'bg-emerald-950/40 text-emerald-400 border-emerald-500/30' 
+                : 'bg-rose-950/40 text-rose-400 border-rose-500/30'
+            }`}>
+              {uploadMessage.text}
+            </div>
+          )}
 
           {/* חלק 1: ניהול דמויות */}
           <section className="mb-6">
@@ -125,17 +172,39 @@ export const ControlsModal: React.FC<ControlsModalProps> = ({
                       </div>
                     </div>
 
-                    <button
-                      onClick={() => {
-                        if (window.confirm(`להסיר את ${char.name} מהקמפיין?`)) {
-                          onRemoveCharacter(char.id);
-                        }
-                      }}
-                      className="text-xs text-rose-400 hover:text-rose-300 bg-rose-950/40 hover:bg-rose-900/60 p-1.5 rounded-lg border border-rose-500/20 transition"
-                      title="הסר דמות"
-                    >
-                      🗑️
-                    </button>
+                    <div className="flex items-center gap-2">
+                      {/* כפתור העלאת PDF */}
+                      <label 
+                        className={`cursor-pointer text-xs p-1.5 rounded-lg border transition ${
+                          uploadingCharId === (char.id || char.beyondId)
+                            ? 'bg-amber-900/60 border-amber-500/50 text-amber-300 cursor-wait'
+                            : 'bg-slate-800/40 hover:bg-slate-700 border-slate-600/50 text-slate-300'
+                        }`}
+                        title="העלה דף דמות (PDF)"
+                      >
+                        {uploadingCharId === (char.id || char.beyondId) ? '⏳' : '📄'}
+                        <input 
+                          type="file" 
+                          accept="application/pdf"
+                          className="hidden" 
+                          disabled={uploadingCharId === (char.id || char.beyondId)}
+                          onChange={(e) => handleFileUpload(char, e)}
+                        />
+                      </label>
+
+                      {/* כפתור מחיקה מקורי */}
+                      <button
+                        onClick={() => {
+                          if (window.confirm(`להסיר את ${char.name} מהקמפיין?`)) {
+                            onRemoveCharacter(char.id);
+                          }
+                        }}
+                        className="text-xs text-rose-400 hover:text-rose-300 bg-rose-950/40 hover:bg-rose-900/60 p-1.5 rounded-lg border border-rose-500/20 transition"
+                        title="הסר דמות"
+                      >
+                        🗑️
+                      </button>
+                    </div>
                   </div>
                 ))
               )}

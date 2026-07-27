@@ -1,52 +1,32 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { sendMessageToGemini, type ChatMessage } from '../../../services/geminiService';
+import React from 'react';
+import { useGeminiChat } from '../../../hooks/useGeminiChat';
 
 interface GeminiChatDrawerProps {
   isOpen: boolean;
   onClose: () => void;
+  campaignId?: string;
 }
 
-export const GeminiChatDrawer: React.FC<GeminiChatDrawerProps> = ({ isOpen, onClose }) => {
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      sender: 'gemini',
-      text: 'שלום! אני עוזר ה-D&D שלך. שאל אותי חוקים, בקש תיאורי סביבה, או מחולל רעיונות ל-NPCs בלייב!',
-    },
-  ]);
-  const [input, setInput] = useState('');
-  const [loading, setLoading] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-
-  // גלילה אוטומטית למטה בכל הודעה חדשה
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, loading]);
+export const GeminiChatDrawer: React.FC<GeminiChatDrawerProps> = ({
+  isOpen,
+  onClose,
+  campaignId,
+}) => {
+  // הפעלת ה-Hook עם ה-campaignId המעודכן
+  const {
+    messages,
+    input,
+    setInput,
+    loading,
+    sendMessage,
+    messagesEndRef,
+  } = useGeminiChat(campaignId);
 
   if (!isOpen) return null;
 
-  const handleSend = async (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    if (!input.trim() || loading) return;
-
-    const userMsg = input.trim();
-    setInput('');
-
-    // הוספת הודעת המשתמש להיסטוריה
-    const updatedMessages: ChatMessage[] = [...messages, { sender: 'user', text: userMsg }];
-    setMessages(updatedMessages);
-    setLoading(true);
-
-    try {
-      const reply = await sendMessageToGemini(userMsg, updatedMessages.slice(0, -1));
-      setMessages((prev) => [...prev, { sender: 'gemini', text: reply }]);
-    } catch (err) {
-      setMessages((prev) => [
-        ...prev,
-        { sender: 'gemini', text: '⚠️ אירעה שגיאה בחיבור ל-Gemini. וודא שהגדרת VITE_GEMINI_API_KEY ב-env.' },
-      ]);
-    } finally {
-      setLoading(false);
-    }
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    sendMessage();
   };
 
   return (
@@ -97,13 +77,13 @@ export const GeminiChatDrawer: React.FC<GeminiChatDrawerProps> = ({ isOpen, onCl
       {/* Quick Prompts */}
       <div className="p-2 border-t border-slate-800/60 bg-slate-950/30 flex gap-2 overflow-x-auto text-[11px]">
         <button
-          onClick={() => setInput('איך עובד Grapple ב-5e?')}
+          onClick={() => sendMessage('איך עובד Grapple ב-5e?')}
           className="bg-slate-800 hover:bg-slate-700 text-amber-300/80 px-2.5 py-1 rounded-lg border border-slate-700 whitespace-nowrap transition"
         >
           🥊 חוקי Grapple
         </button>
         <button
-          onClick={() => setInput('תרגם ותאר מבוך עתיק ואפל ב-2 משפטים')}
+          onClick={() => sendMessage('תרגם ותאר מבוך עתיק ואפל ב-2 משפטים')}
           className="bg-slate-800 hover:bg-slate-700 text-amber-300/80 px-2.5 py-1 rounded-lg border border-slate-700 whitespace-nowrap transition"
         >
           🏰 תיאור מבוך
@@ -111,7 +91,7 @@ export const GeminiChatDrawer: React.FC<GeminiChatDrawerProps> = ({ isOpen, onCl
       </div>
 
       {/* Input Form */}
-      <form onSubmit={handleSend} className="p-3 border-t border-slate-800 bg-slate-950/80 flex gap-2">
+      <form onSubmit={handleSubmit} className="p-3 border-t border-slate-800 bg-slate-950/80 flex gap-2">
         <input
           type="text"
           placeholder="שאל חוק, בקש רעיון ל-NPC..."

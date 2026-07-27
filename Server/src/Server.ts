@@ -3,6 +3,8 @@ import cors from 'cors';
 import userRoutes from './routes/userRoutes.js';
 import characterRoutes from './routes/characterRoutes.js';
 import campaignRoutes from "./routes/campaignRoutes.js";
+import aiRoutes from './routes/aiRoutes.js';
+import characterSheetPDFRoutes from './routes/characterSheetPDFRoutes.js';
 
 
 const app = express();
@@ -20,6 +22,8 @@ app.get('/health', (_req, res) => {
 app.use('/api/users', userRoutes);
 app.use('/api/characters', characterRoutes);
 app.use('/api/campaigns', campaignRoutes);
+app.use('/api/ai', aiRoutes);
+app.use('/api/character-sheets', characterSheetPDFRoutes);
 
 app.listen(PORT, () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`);

@@ -177,6 +177,7 @@ export const LiveOverlay: React.FC<LiveOverlayProps> = ({
       <GeminiChatDrawer
         isOpen={isChatOpen}
         onClose={() => setIsChatOpen(false)}
+        campaignId={campaign.id} // 👈 הוספנו את ה-campaignId כאן!
       />
 
       {/* DM Controls Modal */}
