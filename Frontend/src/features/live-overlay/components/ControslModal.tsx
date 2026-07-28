@@ -12,6 +12,7 @@ interface ControlsModalProps {
   onAddCharacter: (newChar: Character) => void;
   onRemoveCharacter: (id: string) => void;
   onUpdateBg: (newBgUrl: string) => void;
+  onUpdateMapUrl?: (newMapUrl: string) => void; // 👈 פונקציה לעדכון המפה
 }
 
 export const ControlsModal: React.FC<ControlsModalProps> = ({
@@ -22,16 +23,16 @@ export const ControlsModal: React.FC<ControlsModalProps> = ({
   onAddCharacter,
   onRemoveCharacter,
   onUpdateBg,
+  onUpdateMapUrl,
 }) => {
   const [bgInput, setBgInput] = useState("");
+  const [mapInput, setMapInput] = useState(""); // 👈 State עבור המפה
   const [isAddCharOpen, setIsAddCharOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<"controls" | "summaries">("controls");
   
-  // States לניהול העלאת ה-PDF
   const [uploadingCharId, setUploadingCharId] = useState<string | null>(null);
   const [uploadMessage, setUploadMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
-  // סגירת המודאל בלחיצה על מקש Escape
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape" && !isAddCharOpen) {
@@ -58,7 +59,14 @@ export const ControlsModal: React.FC<ControlsModalProps> = ({
     }
   };
 
-  // פונקציית הטיפול בהעלאת קובץ ה-PDF
+  const handleMapSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (mapInput.trim() && onUpdateMapUrl) {
+      onUpdateMapUrl(mapInput.trim());
+      setMapInput("");
+    }
+  };
+
   const handleFileUpload = async (char: Character, e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !campaignId) return;
@@ -90,12 +98,10 @@ export const ControlsModal: React.FC<ControlsModalProps> = ({
 
   return (
     <>
-      {/* Overlay Backdrop */}
       <div 
         className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
         onClick={onClose}
       >
-        {/* תוכן המודאל */}
         <div 
           className="w-full max-w-2xl bg-slate-900 border border-amber-500/30 rounded-2xl p-6 shadow-2xl text-slate-100 max-h-[90vh] flex flex-col"
           onClick={(e) => e.stopPropagation()}
@@ -114,7 +120,7 @@ export const ControlsModal: React.FC<ControlsModalProps> = ({
             </button>
           </div>
 
-          {/* טאבים לניווט במודאל */}
+          {/* Navigation Tabs */}
           <div className="flex gap-2 border-b border-slate-800 pb-3 mb-4">
             <button
               onClick={() => setActiveTab("controls")}
@@ -138,11 +144,10 @@ export const ControlsModal: React.FC<ControlsModalProps> = ({
             </button>
           </div>
 
-          {/* גוף המודאל לפי הטאב הנבחר */}
+          {/* Body Content */}
           <div className="flex-1 overflow-y-auto pr-1 space-y-5">
             {activeTab === "controls" ? (
               <>
-                {/* הודעות מערכת על העלאת PDF */}
                 {uploadMessage && (
                   <div className={`p-2 text-xs rounded-lg text-center border ${
                     uploadMessage.type === 'success' 
@@ -153,7 +158,7 @@ export const ControlsModal: React.FC<ControlsModalProps> = ({
                   </div>
                 )}
 
-                {/* חלק 1: ניהול דמויות */}
+                {/* 1. ניהול דמויות */}
                 <section>
                   <div className="flex justify-between items-center mb-3">
                     <h4 className="text-sm font-semibold text-slate-300">
@@ -201,7 +206,6 @@ export const ControlsModal: React.FC<ControlsModalProps> = ({
                           </div>
 
                           <div className="flex items-center gap-2">
-                            {/* כפתור העלאת PDF */}
                             <label 
                               className={`cursor-pointer text-xs p-1.5 rounded-lg border transition ${
                                 uploadingCharId === (char.id || char.beyondId)
@@ -220,7 +224,6 @@ export const ControlsModal: React.FC<ControlsModalProps> = ({
                               />
                             </label>
 
-                            {/* כפתור מחיקה */}
                             <button
                               onClick={() => {
                                 if (window.confirm(`להסיר את ${char.name} מהקמפיין?`)) {
@@ -241,10 +244,35 @@ export const ControlsModal: React.FC<ControlsModalProps> = ({
 
                 <hr className="border-slate-800 my-4" />
 
-                {/* חלק 2: שינוי רקע */}
+                {/* 2. שינוי תמונת מפת עולם */}
                 <section>
                   <h4 className="text-sm font-semibold text-slate-300 mb-2">
-                    🖼️ שינוי תמונת רקע (URL)
+                    🗺️ שינוי תמונת מפת עולם (URL)
+                  </h4>
+                  <form onSubmit={handleMapSubmit} className="flex gap-2">
+                    <input
+                      type="text"
+                      placeholder="הדבק קישור למפה..."
+                      value={mapInput}
+                      onChange={(e) => setMapInput(e.target.value)}
+                      className="flex-1 bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-amber-500 transition"
+                    />
+                    <button
+                      type="submit"
+                      disabled={!mapInput.trim()}
+                      className="px-3 py-2 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-amber-400 font-bold text-xs rounded-xl transition"
+                    >
+                      עדכן מפה
+                    </button>
+                  </form>
+                </section>
+
+                <hr className="border-slate-800 my-4" />
+
+                {/* 3. שינוי תמונת רקע קמפיין */}
+                <section>
+                  <h4 className="text-sm font-semibold text-slate-300 mb-2">
+                    🖼️ שינוי תמונת רקע קמפיין (URL)
                   </h4>
                   <form onSubmit={handleBgSubmit} className="flex gap-2">
                     <input
@@ -265,7 +293,6 @@ export const ControlsModal: React.FC<ControlsModalProps> = ({
                 </section>
               </>
             ) : (
-              /* חלק 3: הצגת סיכומי הקמפיין */
               <section className="py-2">
                 {campaignId ? (
                   <CampaignSummaries campaignId={campaignId} />
@@ -280,7 +307,6 @@ export const ControlsModal: React.FC<ControlsModalProps> = ({
         </div>
       </div>
 
-      {/* מודאל הוספת דמות מ-D&D Beyond */}
       <AddCharacterModal
         isOpen={isAddCharOpen}
         onClose={() => setIsAddCharOpen(false)}

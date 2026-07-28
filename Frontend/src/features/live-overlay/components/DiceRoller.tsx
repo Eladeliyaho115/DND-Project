@@ -13,6 +13,7 @@ export const DiceRoller: React.FC<DiceRollerProps> = ({
   const diceBoxRef = useRef<any>(null);
   const [isReady, setIsReady] = useState(false);
   const [lastResult, setLastResult] = useState<number | null>(null);
+  const [isRolling, setIsRolling] = useState(false); // 👈 דגל למעקב אחרי מצב הגלגול
 
   useEffect(() => {
     const diceBox = new DiceBox({
@@ -37,6 +38,7 @@ export const DiceRoller: React.FC<DiceRollerProps> = ({
         setIsReady(true);
 
         diceBox.onRollComplete = (results: any) => {
+          setIsRolling(false); // 🛑 הגלגול הסתיים - כעת ניתן לנקות או להטיל קובייה חדשה
           const total = results.reduce(
             (sum: number, die: any) => sum + die.value,
             0,
@@ -59,7 +61,17 @@ export const DiceRoller: React.FC<DiceRollerProps> = ({
   }, []);
 
   useEffect(() => {
-    if (triggerRoll && isReady && diceBoxRef.current) {
+    if (!isReady || !diceBoxRef.current) return;
+
+    // 🛑 אם הקובייה באמצע גלגול, נתעלם מכל פקודה חדשה (גלגול נוסף או ניקוי)
+    if (isRolling) return;
+
+    // 🧹 ניקוי יתבצע רק אם איננו באמצע גלגול
+    if (triggerRoll === "CLEAR") {
+      diceBoxRef.current.clear();
+      setLastResult(null);
+    } else if (triggerRoll) {
+      setIsRolling(true); // 🎲 מתחיל גלגול - חוסם ניקוי וגלגולים נוספים עד לסיום
       setLastResult(null);
       diceBoxRef.current.clear();
 
@@ -69,11 +81,11 @@ export const DiceRoller: React.FC<DiceRollerProps> = ({
         // spinForce: 4, // 👈 מוריד את מהירות הטרלול/סיבוב ההתחלתי (ברירת מחדל: ~4-6)
       });
     }
-  }, [triggerRoll, isReady]);
+  }, [triggerRoll, isReady, isRolling]);
 
   return (
     <>
-     {/* עטיפה חיצונית שממרכזת במסך */}
+      {/* עטיפה חיצונית שממרכזת במסך */}
       <div className="fixed inset-0 flex items-center justify-center pointer-events-none z-50">
         
         {/* 🎯 ה-Container של הקובייה - כאן אתה קובע את הגודל הרצוי! */}

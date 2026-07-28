@@ -6,5 +6,6 @@ export interface Campaign {
   description?: string | null;
   status?: 'active' | 'completed' | 'upcoming';
   bgUrl: string;
+  mapUrl?: string; // 👈 הוספת השדה למפת העולם
   characters: Character[];
 }

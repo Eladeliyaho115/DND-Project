@@ -148,9 +148,9 @@ YOUR RESPONSIBILITIES & BEHAVIOR:
     parts: currentUserParts,
   });
 
-  // 3. שליחה למודל gemini-3.6-flash
+  // 3. שליחה למודל gemini-3.5-flash-lite
   const response = await ai.models.generateContent({
-    model: "gemini-3.6-flash",
+    model: "gemini-3.5-flash-lite",
     contents: contents,
     config: {
       systemInstruction: systemInstruction,

@@ -4,7 +4,7 @@ import type { Character } from "../../types/character";
 import { CharacterCard } from "./components/CharacterCard";
 import { ControlsModal } from "./components/ControslModal";
 import { GeminiChatDrawer } from "./components/GeminiChatDrawer";
-import { DiceRoller } from "./components/DiceRoller"; // 👈 ייבוא ה-DiceRoller
+import { DiceRoller } from "./components/DiceRoller";
 import {
   deleteCharacterFromDb,
   updateCampaignBackground,
@@ -24,19 +24,23 @@ export const LiveOverlay: React.FC<LiveOverlayProps> = ({
   onUpdateBg,
 }) => {
   const [isAdminOpen, setIsAdminOpen] = useState(false);
-  const [isChatOpen, setIsChatOpen] = useState(false);
   const [characters, setCharacters] = useState<Character[]>(
-    campaign.characters,
+    campaign.characters
   );
   const [currentBg, setCurrentBg] = useState<string>(campaign.bgUrl);
+  const [currentMap, setCurrentMap] = useState<string | undefined>(
+    campaign.mapUrl
+  );
 
-  // הוספת State לטריגר של גלגול הקוביות
-  const [selectedNotation, setSelectedNotation] = useState<string | null>(null);
+  // State לטריגר של גלגול/ניקוי הקוביות
+  const [selectedNotation, setSelectedNotation] = useState<string | null>(
+    null
+  );
 
-  // סנכרון ה-State המקומי אם ה-Campaign משתנה מבחוץ
   useEffect(() => {
     setCharacters(campaign.characters);
     setCurrentBg(campaign.bgUrl);
+    setCurrentMap(campaign.mapUrl);
   }, [campaign]);
 
   const handleAddCharacter = (newChar: Character) => {
@@ -62,6 +66,10 @@ export const LiveOverlay: React.FC<LiveOverlayProps> = ({
       console.error("Failed to update background:", error);
       alert("שגיאה בעדכון התמונה בשרת");
     }
+  };
+
+  const handleUpdateMapUrl = (newMapUrl: string) => {
+    setCurrentMap(newMapUrl);
   };
 
   const handleOpenDndBeyond = (character: Character) => {
@@ -98,6 +106,11 @@ export const LiveOverlay: React.FC<LiveOverlayProps> = ({
     }
   };
 
+  const handleClearDice = () => {
+    setSelectedNotation("CLEAR");
+    setTimeout(() => setSelectedNotation(null), 50);
+  };
+
   return (
     <div className={styles.container}>
       {/* Dynamic Background */}
@@ -108,14 +121,14 @@ export const LiveOverlay: React.FC<LiveOverlayProps> = ({
         <div className={styles.bgGradient} />
       </div>
 
-      {/* 3D Dice Layer (רץ מעל הרקע אך מתחת למודאלים/צ'אט) */}
+      {/* 3D Dice Layer */}
       <DiceRoller
         triggerRoll={selectedNotation}
         onRollEnd={() => setSelectedNotation(null)}
       />
 
-      {/* Main UI */}
-      <div className={styles.content}>
+      {/* Layout Wrapper */}
+      <div className={styles.layoutWrapper}>
         {/* Header */}
         <header className={styles.header}>
           <div className={styles.headerLeft}>
@@ -127,14 +140,6 @@ export const LiveOverlay: React.FC<LiveOverlayProps> = ({
 
           <div className={styles.headerRight}>
             <button
-              onClick={() => setIsChatOpen((prev) => !prev)}
-              className={styles.btnGemini}
-            >
-              <span>✨</span>
-              <span>Gemini AI</span>
-            </button>
-
-            <button
               onClick={() => setIsAdminOpen(true)}
               className={styles.btnControls}
             >
@@ -143,42 +148,75 @@ export const LiveOverlay: React.FC<LiveOverlayProps> = ({
           </div>
         </header>
 
-        {/* Center Space */}
-        <main className={styles.mainSpace} />
+        {/* Main Grid: Left Chat, Center Space, Right Controls & Characters */}
+        <div className={styles.mainGrid}>
+          {/* Left Panel: Always Open Gemini Chat */}
+          <aside className={styles.leftPanel}>
+            <div className={styles.chatContainer}>
+              <GeminiChatDrawer
+                isOpen={true}
+                onClose={() => {}}
+                campaignId={campaign.id}
+              />
+            </div>
+          </aside>
 
-        {/* Quick Roll Bar (סרגל כפתורי קוביות צף) */}
-        <div className={styles.quickRollBar}>
-          <span className={styles.rollLabel}>🎲 Roll Dice:</span>
+          {/* Center Play Area: World Map */}
+          <main className={styles.centerPanel}>
+            {currentMap && (
+              <div className={styles.mapContainer}>
+                <img
+                  src={currentMap}
+                  alt="World Map"
+                  className={styles.worldMap}
+                />
+              </div>
+            )}
+          </main>
 
-          {["1d20", "1d12", "1d10", "1d8", "1d6", "1d4"].map((notation) => (
-            <button
-              key={notation}
-              onClick={() => setSelectedNotation(notation)}
-              className={styles.btnRoll}
-            >
-              {notation}
-            </button>
-          ))}
+          {/* Right Panel: Dice Controls & Character Cards */}
+          <aside className={styles.rightPanel}>
+            {/* Quick Roll Floating Bar inside right column */}
+            <div className={styles.quickRollBar}>
+              <span className={styles.rollLabel}>🎲 Roll Dice</span>
+              <div className={styles.diceButtonsGroup}>
+                {["1d20", "1d12", "1d10", "1d8", "1d6", "1d4"].map(
+                  (notation) => (
+                    <button
+                      key={notation}
+                      onClick={() => setSelectedNotation(notation)}
+                      className={styles.btnRoll}
+                    >
+                      {notation}
+                    </button>
+                  )
+                )}
+                <button
+                  onClick={handleClearDice}
+                  className={styles.btnClear}
+                  title="Clear dice from screen"
+                >
+                  🧹 Clear
+                </button>
+              </div>
+            </div>
+
+            {/* Characters List Section */}
+            <div className={styles.characterSection}>
+              <h3 className={styles.sectionTitle}>Party Characters</h3>
+              <div className={styles.characterList}>
+                {characters.map((char) => (
+                  <CharacterCard
+                    key={char.id || char.beyondId}
+                    character={char}
+                    onOpenDetails={handleOpenDndBeyond}
+                  />
+                ))}
+              </div>
+            </div>
+          </aside>
         </div>
-
-        {/* Character Cards Footer */}
-        <footer className={styles.footer}>
-          {characters.map((char) => (
-            <CharacterCard
-              key={char.id || char.beyondId}
-              character={char}
-              onOpenDetails={handleOpenDndBeyond}
-            />
-          ))}
-        </footer>
       </div>
-
-      {/* Gemini AI Chat Drawer */}
-      <GeminiChatDrawer
-        isOpen={isChatOpen}
-        onClose={() => setIsChatOpen(false)}
-        campaignId={campaign.id} // 👈 הוספנו את ה-campaignId כאן!
-      />
 
       {/* DM Controls Modal */}
       <ControlsModal
@@ -189,6 +227,7 @@ export const LiveOverlay: React.FC<LiveOverlayProps> = ({
         onAddCharacter={handleAddCharacter}
         onRemoveCharacter={handleRemoveCharacter}
         onUpdateBg={(newBg) => handleUpdateBg(campaign.id, newBg)}
+        onUpdateMapUrl={handleUpdateMapUrl}
       />
     </div>
   );
