@@ -22,6 +22,7 @@ export const LiveOverlay: React.FC<LiveOverlayProps> = ({
   onUpdateBg,
 }) => {
   const [isAdminOpen, setIsAdminOpen] = useState(false);
+  const [isChatOpen, setIsChatOpen] = useState(true); // State דינמי לניהול פתיחה/סגירה של ה-AI
   const [characters, setCharacters] = useState<Character[]>(
     campaign.characters
   );
@@ -143,6 +144,14 @@ export const LiveOverlay: React.FC<LiveOverlayProps> = ({
           </div>
 
           <div className={styles.headerRight}>
+            {!isChatOpen && (
+              <button
+                onClick={() => setIsChatOpen(true)}
+                className={styles.btnControls}
+              >
+                ✨ Open AI Assistant
+              </button>
+            )}
             <button
               onClick={() => setIsAdminOpen(true)}
               className={styles.btnControls}
@@ -154,15 +163,17 @@ export const LiveOverlay: React.FC<LiveOverlayProps> = ({
 
         {/* Main Grid: Left Chat, Center Space, Right Controls & Characters */}
         <div className={styles.mainGrid}>
-          {/* Left Panel: Always Open Gemini Chat */}
+          {/* Left Panel: Gemini Chat */}
           <aside className={styles.leftPanel}>
-            <div className={styles.chatContainer}>
-              <GeminiChatDrawer
-                isOpen={true}
-                onClose={() => {}}
-                campaignId={campaign.id}
-              />
-            </div>
+            {isChatOpen && (
+              <div className={styles.chatContainer}>
+                <GeminiChatDrawer
+                  isOpen={isChatOpen}
+                  onClose={() => setIsChatOpen(false)}
+                  campaignId={campaign.id}
+                />
+              </div>
+            )}
           </aside>
 
           {/* Center Play Area: World Map */}
