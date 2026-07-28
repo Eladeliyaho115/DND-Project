@@ -38,7 +38,7 @@ export const GeminiChatDrawer: React.FC<GeminiChatDrawerProps> = ({
   };
 
   return (
-    <div className="fixed inset-y-0 right-0 z-50 w-full max-w-xl bg-slate-900/95 border-l border-amber-500/30 shadow-2xl backdrop-blur-md flex flex-row transition-all dir-rtl">
+    <div className="w-full h-full bg-slate-900/95 border border-amber-500/30 rounded-xl shadow-2xl backdrop-blur-md flex flex-row transition-all dir-rtl overflow-hidden">
       
       {/* 🟢 Sidebar: רשימת השיחות */}
       <div
