@@ -27,24 +27,7 @@ export const getCampaignById = async (campaignId: string) => {
   };
 };
 
-// 2. עדכון רקע המערכה
-export const updateCampaignBackground = async (
-  campaignId: string,
-  bgUrl: string,
-) => {
-  const updatedCampaign = await prisma.campaign.update({
-    where: {
-      id: campaignId,
-    },
-    data: {
-      bgUrl,
-    },
-  });
-
-  return updatedCampaign;
-};
-
-// 3. קבלת כל המערכות כולל הדמויות
+// 2. קבלת כל המערכות כולל הדמויות
 export const getAllCampaigns = async () => {
   const campaigns = await prisma.campaign.findMany({
     include: {
@@ -54,12 +37,11 @@ export const getAllCampaigns = async () => {
 
   return campaigns.map((campaign) => ({
     ...campaign,
-
     characters: campaign.characters.map(formatDbCharacterToFrontend),
   }));
 };
 
-// 4. יצירת קמפיין חדש
+// 3. יצירת קמפיין חדש
 export const createCampaign = async (
   title: string,
   description?: string,
@@ -68,15 +50,11 @@ export const createCampaign = async (
   const campaign = await prisma.campaign.create({
     data: {
       title,
-
       description: description || "",
-
       bgUrl:
         bgUrl || "https://images.unsplash.com/photo-1518709268805-4e9042af9f23",
-
       status: "active",
     },
-
     include: {
       characters: true,
     },
@@ -88,30 +66,55 @@ export const createCampaign = async (
   };
 };
 
-// 5. עדכון סטטוס קמפיין
-export const updateCampaignStatus = async (
+// 4. עדכון פרטי קמפיין (כולל סטטוס, תמונת רקע ומפת עולם)
+export const updateCampaign = async (
   campaignId: string,
-  status: string,
+  data: {
+    title?: string;
+    description?: string;
+    bgUrl?: string;
+    mapUrl?: string;
+    status?: string;
+  },
 ) => {
-  const updated = await prisma.campaign.update({
+  const updatedCampaign = await prisma.campaign.update({
     where: {
       id: campaignId,
     },
-
     data: {
-      status,
+      ...(data.title !== undefined && {
+        title: data.title,
+      }),
+      ...(data.description !== undefined && {
+        description: data.description,
+      }),
+      ...(data.bgUrl !== undefined && {
+        bgUrl: data.bgUrl,
+      }),
+      ...(data.mapUrl !== undefined && {
+        mapUrl: data.mapUrl,
+      }),
+      ...(data.status !== undefined && {
+        status: data.status,
+      }),
     },
-
     include: {
       characters: true,
     },
   });
 
   return {
-    ...updated,
-
-    characters: updated.characters.map(formatDbCharacterToFrontend),
+    ...updatedCampaign,
+    characters: updatedCampaign.characters.map(formatDbCharacterToFrontend),
   };
+};
+
+// 5. עדכון סטטוס קמפיין
+export const updateCampaignStatus = async (
+  campaignId: string,
+  status: string,
+) => {
+  return updateCampaign(campaignId, { status });
 };
 
 // 6. מחיקת קמפיין
@@ -121,49 +124,4 @@ export const deleteCampaign = async (campaignId: string) => {
       id: campaignId,
     },
   });
-};
-
-// 7. עדכון פרטי קמפיין
-export const updateCampaign = async (
-  campaignId: string,
-  data: {
-    title?: string;
-    description?: string;
-    bgUrl?: string;
-    status?: string;
-  },
-) => {
-  const updatedCampaign = await prisma.campaign.update({
-    where: {
-      id: campaignId,
-    },
-
-    data: {
-      ...(data.title !== undefined && {
-        title: data.title,
-      }),
-
-      ...(data.description !== undefined && {
-        description: data.description,
-      }),
-
-      ...(data.bgUrl !== undefined && {
-        bgUrl: data.bgUrl,
-      }),
-
-      ...(data.status !== undefined && {
-        status: data.status,
-      }),
-    },
-
-    include: {
-      characters: true,
-    },
-  });
-
-  return {
-    ...updatedCampaign,
-
-    characters: updatedCampaign.characters.map(formatDbCharacterToFrontend),
-  };
 };

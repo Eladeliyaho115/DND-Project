@@ -28,11 +28,3 @@ export const fetchCampaignWithCharacters = async (campaignId: string): Promise<C
   return response.data;
 };
 
-// עדכון תמונת רקע של מערכה
-export const updateCampaignBackground = async (
-  campaignId: string, 
-  bgUrl: string
-): Promise<Campaign> => {
-  const response = await api.patch<Campaign>(`/campaigns/${campaignId}/background`, { bgUrl });
-  return response.data;
-};

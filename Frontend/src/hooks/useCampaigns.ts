@@ -80,7 +80,7 @@ export const useCampaigns = () => {
   // עדכון פרטי קמפיין
   const handleUpdate = async (
   id: string, 
-  updates: { title?: string; description?: string; bgUrl?: string; status?: string }
+  updates: { title?: string; description?: string; bgUrl?: string; mapUrl?: string; status?: string }
 ) => {
   try {
     // 1. ניקוי שדות undefined כדי שלא ידרסו ערכים קיימים

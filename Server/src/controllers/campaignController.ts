@@ -1,7 +1,6 @@
 // backend/src/controllers/campaignController.ts
 
 import { Request, Response } from "express";
-
 import * as campaignService from "../services/campaign/campaignService.js";
 
 interface CampaignParams {
@@ -37,53 +36,12 @@ export const getCampaignById = async (
 
     return res.status(500).json({
       message: "Failed to fetch campaign",
-
       error: errorMessage,
     });
   }
 };
 
-// 2. עדכון רקע המערכה
-export const updateCampaignBackground = async (
-  req: Request<CampaignParams>,
-  res: Response,
-): Promise<Response> => {
-  try {
-    const campaignId = req.params.id;
-
-    const { bgUrl } = req.body;
-
-    if (!campaignId) {
-      return res.status(400).json({
-        message: "Campaign ID is required",
-      });
-    }
-
-    if (!bgUrl) {
-      return res.status(400).json({
-        message: "bgUrl is required",
-      });
-    }
-
-    const updatedCampaign = await campaignService.updateCampaignBackground(
-      campaignId,
-      bgUrl,
-    );
-
-    return res.status(200).json(updatedCampaign);
-  } catch (error) {
-    const errorMessage =
-      error instanceof Error ? error.message : "Unknown error";
-
-    return res.status(500).json({
-      message: "Failed to update background",
-
-      error: errorMessage,
-    });
-  }
-};
-
-// 3. קבלת כל המערכות
+// 2. קבלת כל המערכות
 export const getAllCampaigns = async (
   _req: Request,
   res: Response,
@@ -98,13 +56,12 @@ export const getAllCampaigns = async (
 
     return res.status(500).json({
       message: "Failed to fetch campaigns",
-
       error: errorMessage,
     });
   }
 };
 
-// 4. יצירת קמפיין חדש
+// 3. יצירת קמפיין חדש
 export const createCampaign = async (
   req: Request,
   res: Response,
@@ -133,20 +90,53 @@ export const createCampaign = async (
 
     return res.status(500).json({
       message: "Failed to create campaign",
-
       error: errorMessage,
     });
   }
 };
 
-// 5. עדכון סטטוס
+// 4. עדכון פרטי קמפיין (כולל title, description, bgUrl, mapUrl, status)
+export const updateCampaign = async (
+  req: Request<CampaignParams>,
+  res: Response,
+): Promise<Response> => {
+  try {
+    const campaignId = req.params.id;
+    const { title, description, bgUrl, mapUrl, status } = req.body;
+
+    if (!campaignId) {
+      return res.status(400).json({
+        message: "Campaign ID is required",
+      });
+    }
+
+    const updatedCampaign = await campaignService.updateCampaign(campaignId, {
+      title,
+      description,
+      bgUrl,
+      mapUrl,
+      status,
+    });
+
+    return res.status(200).json(updatedCampaign);
+  } catch (error) {
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown error";
+
+    return res.status(500).json({
+      message: "Failed to update campaign",
+      error: errorMessage,
+    });
+  }
+};
+
+// 5. עדכון סטטוס קמפיין בלבד
 export const updateCampaignStatus = async (
   req: Request<CampaignParams>,
   res: Response,
 ): Promise<Response> => {
   try {
     const campaignId = req.params.id;
-
     const { status } = req.body;
 
     if (!campaignId || !status) {
@@ -167,7 +157,6 @@ export const updateCampaignStatus = async (
 
     return res.status(500).json({
       message: "Failed to update status",
-
       error: errorMessage,
     });
   }
@@ -198,43 +187,6 @@ export const deleteCampaign = async (
 
     return res.status(500).json({
       message: "Failed to delete campaign",
-
-      error: errorMessage,
-    });
-  }
-};
-
-// 7. עדכון פרטי קמפיין
-export const updateCampaign = async (
-  req: Request<CampaignParams>,
-  res: Response,
-): Promise<Response> => {
-  try {
-    const campaignId = req.params.id;
-
-    const { title, description, bgUrl, status } = req.body;
-
-    if (!campaignId) {
-      return res.status(400).json({
-        message: "Campaign ID is required",
-      });
-    }
-
-    const updatedCampaign = await campaignService.updateCampaign(campaignId, {
-      title,
-      description,
-      bgUrl,
-      status,
-    });
-
-    return res.status(200).json(updatedCampaign);
-  } catch (error) {
-    const errorMessage =
-      error instanceof Error ? error.message : "Unknown error";
-
-    return res.status(500).json({
-      message: "Failed to update campaign",
-
       error: errorMessage,
     });
   }

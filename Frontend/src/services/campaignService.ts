@@ -1,13 +1,13 @@
 import { api } from '../api/axiosClient';
 import type { Campaign } from '../types/campaign';
 
-// קבלת כל הקמפיינים
+// 1. קבלת כל הקמפיינים
 export const fetchAllCampaigns = async (): Promise<Campaign[]> => {
   const response = await api.get<Campaign[]>('/campaigns');
   return response.data;
 };
 
-// יצירת קמפיין חדש
+// 2. יצירת קמפיין חדש
 export const createCampaign = async (
   title: string, 
   description?: string, 
@@ -17,25 +17,24 @@ export const createCampaign = async (
   return response.data;
 };
 
-// עדכון סטטוס קמפיין (active / completed)
+// 3. עדכון פרטי קמפיין (כולל title, description, bgUrl, mapUrl, status)
+export const updateCampaignData = async (
+  id: string, 
+  updates: { title?: string; description?: string; bgUrl?: string; mapUrl?: string; status?: string }
+): Promise<Campaign> => {
+  const response = await api.put<Campaign>(`/campaigns/${id}`, updates);
+  return response.data;
+};
+
+// 4. עדכון סטטוס קמפיין
 export const updateCampaignStatus = async (
   id: string, 
   status: 'active' | 'completed' | 'upcoming'
 ): Promise<Campaign> => {
-  const response = await api.patch<Campaign>(`/campaigns/${id}/status`, { status });
-  return response.data;
+  return updateCampaignData(id, { status });
 };
 
-// מחיקת קמפיין
+// 5. מחיקת קמפיין
 export const deleteCampaignFromDb = async (id: string): Promise<void> => {
   await api.delete(`/campaigns/${id}`);
-};
-
-// עדכון פרטי קמפיין (title, description, bgUrl)    
-export const updateCampaignData = async (
-  id: string, 
-  updates: { title?: string; description?: string; bgUrl?: string; status?: string }
-): Promise<Campaign> => {
-  const response = await api.put<Campaign>(`/campaigns/${id}`, updates);
-  return response.data;
 };

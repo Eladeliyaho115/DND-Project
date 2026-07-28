@@ -12,7 +12,7 @@ interface ControlsModalProps {
   onAddCharacter: (newChar: Character) => void;
   onRemoveCharacter: (id: string) => void;
   onUpdateBg: (newBgUrl: string) => void;
-  onUpdateMapUrl?: (newMapUrl: string) => void; // 👈 פונקציה לעדכון המפה
+  onUpdateMapUrl?: (newMapUrl: string) => void;
 }
 
 export const ControlsModal: React.FC<ControlsModalProps> = ({
@@ -26,10 +26,10 @@ export const ControlsModal: React.FC<ControlsModalProps> = ({
   onUpdateMapUrl,
 }) => {
   const [bgInput, setBgInput] = useState("");
-  const [mapInput, setMapInput] = useState(""); // 👈 State עבור המפה
+  const [mapInput, setMapInput] = useState("");
   const [isAddCharOpen, setIsAddCharOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<"controls" | "summaries">("controls");
-  
+
   const [uploadingCharId, setUploadingCharId] = useState<string | null>(null);
   const [uploadMessage, setUploadMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
@@ -53,16 +53,18 @@ export const ControlsModal: React.FC<ControlsModalProps> = ({
 
   const handleBgSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (bgInput.trim()) {
-      onUpdateBg(bgInput.trim());
+    const trimmed = bgInput.trim();
+    if (trimmed) {
+      onUpdateBg(trimmed);
       setBgInput("");
     }
   };
 
   const handleMapSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (mapInput.trim() && onUpdateMapUrl) {
-      onUpdateMapUrl(mapInput.trim());
+    const trimmed = mapInput.trim();
+    if (trimmed && onUpdateMapUrl) {
+      onUpdateMapUrl(trimmed);
       setMapInput("");
     }
   };
@@ -76,8 +78,10 @@ export const ControlsModal: React.FC<ControlsModalProps> = ({
       return;
     }
 
+    const charIdentifier = char.id || char.beyondId || null;
+
     try {
-      setUploadingCharId(char.id || char.beyondId || null);
+      setUploadingCharId(charIdentifier);
       setUploadMessage(null);
 
       await uploadCharacterSheetPDF({
@@ -87,22 +91,22 @@ export const ControlsModal: React.FC<ControlsModalProps> = ({
       });
 
       setUploadMessage({ type: "success", text: `דף הדמות של ${char.name} הועלה בהצלחה!` });
-    } catch (error: any) {
+    } catch (error) {
       console.error("Error uploading sheet:", error);
       setUploadMessage({ type: "error", text: `שגיאה בהעלאת דף הדמות של ${char.name}` });
     } finally {
       setUploadingCharId(null);
-      e.target.value = ""; 
+      e.target.value = "";
     }
   };
 
   return (
     <>
-      <div 
+      <div
         className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
         onClick={onClose}
       >
-        <div 
+        <div
           className="w-full max-w-2xl bg-slate-900 border border-amber-500/30 rounded-2xl p-6 shadow-2xl text-slate-100 max-h-[90vh] flex flex-col"
           onClick={(e) => e.stopPropagation()}
         >
@@ -149,11 +153,13 @@ export const ControlsModal: React.FC<ControlsModalProps> = ({
             {activeTab === "controls" ? (
               <>
                 {uploadMessage && (
-                  <div className={`p-2 text-xs rounded-lg text-center border ${
-                    uploadMessage.type === 'success' 
-                      ? 'bg-emerald-950/40 text-emerald-400 border-emerald-500/30' 
-                      : 'bg-rose-950/40 text-rose-400 border-rose-500/30'
-                  }`}>
+                  <div
+                    className={`p-2 text-xs rounded-lg text-center border ${
+                      uploadMessage.type === "success"
+                        ? "bg-emerald-950/40 text-emerald-400 border-emerald-500/30"
+                        : "bg-rose-950/40 text-rose-400 border-rose-500/30"
+                    }`}
+                  >
                     {uploadMessage.text}
                   </div>
                 )}
@@ -178,66 +184,71 @@ export const ControlsModal: React.FC<ControlsModalProps> = ({
                         אין דמויות בקמפיין כרגע.
                       </p>
                     ) : (
-                      characters.map((char) => (
-                        <div
-                          key={char.id || char.beyondId}
-                          className="flex items-center justify-between bg-slate-950 p-2.5 rounded-xl border border-slate-800"
-                        >
-                          <div className="flex items-center gap-3">
-                            {char.avatarUrl ? (
-                              <img
-                                src={char.avatarUrl}
-                                alt={char.name}
-                                className="w-8 h-8 rounded-lg object-cover border border-amber-500/40"
-                              />
-                            ) : (
-                              <div className="w-8 h-8 rounded-lg bg-slate-800 border border-slate-700 flex items-center justify-center text-xs text-slate-400">
-                                🛡️
+                      characters.map((char) => {
+                        const currentCharId = char.id || char.beyondId;
+                        const isUploadingThis = uploadingCharId === currentCharId;
+
+                        return (
+                          <div
+                            key={currentCharId}
+                            className="flex items-center justify-between bg-slate-950 p-2.5 rounded-xl border border-slate-800"
+                          >
+                            <div className="flex items-center gap-3">
+                              {char.avatarUrl ? (
+                                <img
+                                  src={char.avatarUrl}
+                                  alt={char.name}
+                                  className="w-8 h-8 rounded-lg object-cover border border-amber-500/40"
+                                />
+                              ) : (
+                                <div className="w-8 h-8 rounded-lg bg-slate-800 border border-slate-700 flex items-center justify-center text-xs text-slate-400">
+                                  🛡️
+                                </div>
+                              )}
+                              <div>
+                                <p className="text-xs font-bold text-slate-200">
+                                  {char.name || "דמות ללא שם"}
+                                </p>
+                                <p className="text-[10px] text-slate-400">
+                                  {char.class || "לא הוגדר"} • Lvl {char.level || 1} ({char.player || "ללא שחקן"})
+                                </p>
                               </div>
-                            )}
-                            <div>
-                              <p className="text-xs font-bold text-slate-200">
-                                {char.name || "דמות ללא שם"}
-                              </p>
-                              <p className="text-[10px] text-slate-400">
-                                {char.class || "לא הוגדר"} • Lvl {char.level || 1} ({char.player || "ללא שחקן"})
-                              </p>
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                              <label
+                                className={`cursor-pointer text-xs p-1.5 rounded-lg border transition ${
+                                  isUploadingThis
+                                    ? "bg-amber-900/60 border-amber-500/50 text-amber-300 cursor-wait"
+                                    : "bg-slate-800/40 hover:bg-slate-700 border-slate-600/50 text-slate-300"
+                                }`}
+                                title="העלה דף דמות (PDF)"
+                              >
+                                {isUploadingThis ? "⏳" : "📄"}
+                                <input
+                                  type="file"
+                                  accept="application/pdf"
+                                  className="hidden"
+                                  disabled={isUploadingThis}
+                                  onChange={(e) => handleFileUpload(char, e)}
+                                />
+                              </label>
+
+                              <button
+                                onClick={() => {
+                                  if (window.confirm(`להסיר את ${char.name} מהקמפיין?`)) {
+                                    onRemoveCharacter(char.id);
+                                  }
+                                }}
+                                className="text-xs text-rose-400 hover:text-rose-300 bg-rose-950/40 hover:bg-rose-900/60 p-1.5 rounded-lg border border-rose-500/20 transition"
+                                title="הסר דמות"
+                              >
+                                🗑️
+                              </button>
                             </div>
                           </div>
-
-                          <div className="flex items-center gap-2">
-                            <label 
-                              className={`cursor-pointer text-xs p-1.5 rounded-lg border transition ${
-                                uploadingCharId === (char.id || char.beyondId)
-                                  ? 'bg-amber-900/60 border-amber-500/50 text-amber-300 cursor-wait'
-                                  : 'bg-slate-800/40 hover:bg-slate-700 border-slate-600/50 text-slate-300'
-                              }`}
-                              title="העלה דף דמות (PDF)"
-                            >
-                              {uploadingCharId === (char.id || char.beyondId) ? '⏳' : '📄'}
-                              <input 
-                                type="file" 
-                                accept="application/pdf"
-                                className="hidden" 
-                                disabled={uploadingCharId === (char.id || char.beyondId)}
-                                onChange={(e) => handleFileUpload(char, e)}
-                              />
-                            </label>
-
-                            <button
-                              onClick={() => {
-                                if (window.confirm(`להסיר את ${char.name} מהקמפיין?`)) {
-                                  onRemoveCharacter(char.id);
-                                }
-                              }}
-                              className="text-xs text-rose-400 hover:text-rose-300 bg-rose-950/40 hover:bg-rose-900/60 p-1.5 rounded-lg border border-rose-500/20 transition"
-                              title="הסר דמות"
-                            >
-                              🗑️
-                            </button>
-                          </div>
-                        </div>
-                      ))
+                        );
+                      })
                     )}
                   </div>
                 </section>

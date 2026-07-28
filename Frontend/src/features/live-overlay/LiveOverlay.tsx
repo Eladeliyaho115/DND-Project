@@ -5,10 +5,8 @@ import { CharacterCard } from "./components/CharacterCard";
 import { ControlsModal } from "./components/ControslModal";
 import { GeminiChatDrawer } from "./components/GeminiChatDrawer";
 import { DiceRoller } from "./components/DiceRoller";
-import {
-  deleteCharacterFromDb,
-  updateCampaignBackground,
-} from "../../services/dndBeyondService";
+import { deleteCharacterFromDb } from "../../services/dndBeyondService";
+import { updateCampaignData } from "../../services/campaignService";
 
 import styles from "@styles/LiveOverlay.module.css";
 
@@ -57,19 +55,25 @@ export const LiveOverlay: React.FC<LiveOverlayProps> = ({
     }
   };
 
-  const handleUpdateBg = async (campaignId: string, newBgUrl: string) => {
+  const handleUpdateCampaign = async (
+    campaignId: string,
+    updates: { bgUrl?: string; mapUrl?: string; title?: string; description?: string }
+  ) => {
     try {
-      await updateCampaignBackground(campaignId, newBgUrl);
-      setCurrentBg(newBgUrl);
-      onUpdateBg(campaignId, newBgUrl);
-    } catch (error) {
-      console.error("Failed to update background:", error);
-      alert("שגיאה בעדכון התמונה בשרת");
-    }
-  };
+      await updateCampaignData(campaignId, updates);
 
-  const handleUpdateMapUrl = (newMapUrl: string) => {
-    setCurrentMap(newMapUrl);
+      if (updates.bgUrl !== undefined) {
+        setCurrentBg(updates.bgUrl);
+        onUpdateBg?.(campaignId, updates.bgUrl);
+      }
+
+      if (updates.mapUrl !== undefined) {
+        setCurrentMap(updates.mapUrl);
+      }
+    } catch (error) {
+      console.error("Failed to update campaign:", error);
+      alert("שגיאה בעדכון פרטי הקמפיין בשרת");
+    }
   };
 
   const handleOpenDndBeyond = (character: Character) => {
@@ -226,8 +230,8 @@ export const LiveOverlay: React.FC<LiveOverlayProps> = ({
         characters={characters}
         onAddCharacter={handleAddCharacter}
         onRemoveCharacter={handleRemoveCharacter}
-        onUpdateBg={(newBg) => handleUpdateBg(campaign.id, newBg)}
-        onUpdateMapUrl={handleUpdateMapUrl}
+        onUpdateBg={(newBg) => handleUpdateCampaign(campaign.id, { bgUrl: newBg })}
+        onUpdateMapUrl={(newMap) => handleUpdateCampaign(campaign.id, { mapUrl: newMap })}
       />
     </div>
   );
