@@ -38,7 +38,11 @@ export const GeminiChatDrawer: React.FC<GeminiChatDrawerProps> = ({
   };
 
   return (
-    <div className="w-full h-full bg-slate-900/95 border border-amber-500/30 rounded-xl shadow-2xl backdrop-blur-md flex flex-row transition-all dir-rtl overflow-hidden">
+    /* 🟢 תוקן: הגדרת dir="rtl" כ-attribute רשמי של HTML במקום מחלקת CSS */
+    <div 
+      dir="rtl" 
+      className="w-full h-full bg-slate-900/95 border border-amber-500/30 rounded-xl shadow-2xl backdrop-blur-md flex flex-row transition-all overflow-hidden text-right"
+    >
       
       {/* 🟢 Sidebar: רשימת השיחות */}
       <div
@@ -111,13 +115,15 @@ export const GeminiChatDrawer: React.FC<GeminiChatDrawerProps> = ({
           {messages.map((msg, i) => (
             <div
               key={i}
-              className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
+              className={`flex ${msg.sender === 'user' ? 'justify-start' : 'justify-end'}`}
             >
+              {/* 🟢 תוקן: הוספת dir="auto" ו-text-right למעטפת ההודעות כדי להתמודד עם שפות מעורבות */}
               <div
-                className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-xs leading-relaxed ${
+                dir="auto"
+                className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-xs leading-relaxed text-right ${
                   msg.sender === 'user'
-                    ? 'bg-amber-500 text-slate-950 font-medium rounded-br-none'
-                    : 'bg-slate-800 text-slate-100 border border-slate-700/60 rounded-bl-none prose prose-invert prose-xs max-w-none'
+                    ? 'bg-amber-500 text-slate-950 font-medium rounded-bl-none'
+                    : 'bg-slate-800 text-slate-100 border border-slate-700/60 rounded-br-none prose prose-invert prose-xs max-w-none text-right [direction:inherit]'
                 }`}
               >
                 {msg.sender === 'user' ? (
@@ -130,8 +136,8 @@ export const GeminiChatDrawer: React.FC<GeminiChatDrawerProps> = ({
           ))}
 
           {loading && (
-            <div className="flex justify-start">
-              <div className="bg-slate-800 text-amber-400 border border-slate-700/60 rounded-2xl rounded-bl-none px-4 py-2 text-xs flex items-center gap-2">
+            <div className="flex justify-end">
+              <div className="bg-slate-800 text-amber-400 border border-slate-700/60 rounded-2xl rounded-br-none px-4 py-2 text-xs flex items-center gap-2">
                 <span className="animate-spin">⏳</span> Gemini חושב...
               </div>
             </div>
@@ -165,12 +171,14 @@ export const GeminiChatDrawer: React.FC<GeminiChatDrawerProps> = ({
 
         {/* Input Form */}
         <form onSubmit={handleSubmit} className="p-3 border-t border-slate-800 bg-slate-950/80 flex gap-2">
+          {/* 🟢 תוקן: הוספת dir="auto" לשדה הקלט כדי שטקסט בעברית ובאנגלית יוקלד בכיוון הנכון */}
           <input
             type="text"
+            dir="auto"
             placeholder="שאל חוק, בקש רעיון ל-NPC..."
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            className="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-amber-500 transition"
+            className="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-amber-500 transition text-right"
           />
           <button
             type="submit"

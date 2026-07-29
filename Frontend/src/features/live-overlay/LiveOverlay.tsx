@@ -22,7 +22,11 @@ export const LiveOverlay: React.FC<LiveOverlayProps> = ({
   onUpdateBg,
 }) => {
   const [isAdminOpen, setIsAdminOpen] = useState(false);
-  const [isChatOpen, setIsChatOpen] = useState(true); // State דינמי לניהול פתיחה/סגירה של ה-AI
+  const [isChatOpen, setIsChatOpen] = useState(true);
+  
+  // 🌐 State לניהול שפת הממשק (ברירת מחדל: אנגלית)
+  const [language, setLanguage] = useState<"en" | "he">("en");
+
   const [characters, setCharacters] = useState<Character[]>(
     campaign.characters
   );
@@ -30,6 +34,9 @@ export const LiveOverlay: React.FC<LiveOverlayProps> = ({
   const [currentMap, setCurrentMap] = useState<string | undefined>(
     campaign.mapUrl
   );
+
+  // State עבור הטאב האקטיבי במובייל ('map' | 'party' | 'chat')
+  const [activeMobileTab, setActiveMobileTab] = useState<"map" | "party" | "chat">("map");
 
   // State לטריגר של גלגול/ניקוי הקוביות
   const [selectedNotation, setSelectedNotation] = useState<string | null>(
@@ -116,6 +123,10 @@ export const LiveOverlay: React.FC<LiveOverlayProps> = ({
     setTimeout(() => setSelectedNotation(null), 50);
   };
 
+  const toggleLanguage = () => {
+    setLanguage((prev) => (prev === "en" ? "he" : "en"));
+  };
+
   return (
     <div className={styles.container}>
       {/* Dynamic Background */}
@@ -144,27 +155,72 @@ export const LiveOverlay: React.FC<LiveOverlayProps> = ({
           </div>
 
           <div className={styles.headerRight}>
+            {/* 🌐 כפתור החלפת שפה */}
+            <button
+              onClick={toggleLanguage}
+              className={styles.btnControls}
+              title="החלף שפת ממשק"
+            >
+              🌐 {language === "en" ? "עברית" : "English"}
+            </button>
+
             {!isChatOpen && (
               <button
                 onClick={() => setIsChatOpen(true)}
                 className={styles.btnControls}
               >
-                ✨ Open AI Assistant
+                ✨ {language === "he" ? "פתח עוזר AI" : "Open AI Assistant"}
               </button>
             )}
             <button
               onClick={() => setIsAdminOpen(true)}
               className={styles.btnControls}
             >
-              ⚙ DM Controls
+              ⚙ {language === "he" ? "בקרת שליט מבוך" : "DM Controls"}
             </button>
           </div>
         </header>
 
-        {/* Main Grid: Left Chat, Center Space, Right Controls & Characters */}
-        <div className={styles.mainGrid}>
-          {/* Left Panel: Gemini Chat */}
-          <aside className={styles.leftPanel}>
+        {/* Mobile Tab Navigation Bar */}
+        <div className={styles.mobileTabBar}>
+          <button
+            onClick={() => setActiveMobileTab("map")}
+            className={`${styles.mobileTabBtn} ${
+              activeMobileTab === "map" ? styles.mobileTabActive : ""
+            }`}
+          >
+            🗺️ {language === "he" ? "מפה" : "Map"}
+          </button>
+          <button
+            onClick={() => setActiveMobileTab("party")}
+            className={`${styles.mobileTabBtn} ${
+              activeMobileTab === "party" ? styles.mobileTabActive : ""
+            }`}
+          >
+            ⚔️ {language === "he" ? "דמויות וקוביות" : "Party & Dice"}
+          </button>
+          <button
+            onClick={() => setActiveMobileTab("chat")}
+            className={`${styles.mobileTabBtn} ${
+              activeMobileTab === "chat" ? styles.mobileTabActive : ""
+            }`}
+          >
+            ✨ AI DM
+          </button>
+        </div>
+
+        {/* Main Grid: בדסקטופ הכיווניות משתנה, במובייל נשארת קבועה */}
+        <div
+          className={`${styles.mainGrid} ${
+            language === "he" ? styles.rtlLayout : styles.ltrLayout
+          }`}
+        >
+          {/* AI Chat Panel */}
+          <aside
+            className={`${styles.chatPanel} ${
+              activeMobileTab === "chat" ? styles.mobileTabVisible : ""
+            }`}
+          >
             {isChatOpen && (
               <div className={styles.chatContainer}>
                 <GeminiChatDrawer
@@ -176,8 +232,12 @@ export const LiveOverlay: React.FC<LiveOverlayProps> = ({
             )}
           </aside>
 
-          {/* Center Play Area: World Map */}
-          <main className={styles.centerPanel}>
+          {/* Center Map Panel */}
+          <main
+            className={`${styles.centerPanel} ${
+              activeMobileTab === "map" ? styles.mobileTabVisible : ""
+            }`}
+          >
             {currentMap && (
               <div className={styles.mapContainer}>
                 <img
@@ -189,11 +249,17 @@ export const LiveOverlay: React.FC<LiveOverlayProps> = ({
             )}
           </main>
 
-          {/* Right Panel: Dice Controls & Character Cards */}
-          <aside className={styles.rightPanel}>
-            {/* Quick Roll Floating Bar inside right column */}
+          {/* Party & Dice Panel */}
+          <aside
+            className={`${styles.partyPanel} ${
+              activeMobileTab === "party" ? styles.mobileTabVisible : ""
+            }`}
+          >
+            {/* Quick Roll Bar */}
             <div className={styles.quickRollBar}>
-              <span className={styles.rollLabel}>🎲 Roll Dice</span>
+              <span className={styles.rollLabel}>
+                🎲 {language === "he" ? "גלגול קוביות" : "Roll Dice"}
+              </span>
               <div className={styles.diceButtonsGroup}>
                 {["1d20", "1d12", "1d10", "1d8", "1d6", "1d4"].map(
                   (notation) => (
@@ -211,14 +277,16 @@ export const LiveOverlay: React.FC<LiveOverlayProps> = ({
                   className={styles.btnClear}
                   title="Clear dice from screen"
                 >
-                  🧹 Clear
+                  🧹 {language === "he" ? "נקה" : "Clear"}
                 </button>
               </div>
             </div>
 
             {/* Characters List Section */}
             <div className={styles.characterSection}>
-              <h3 className={styles.sectionTitle}>Party Characters</h3>
+              <h3 className={styles.sectionTitle}>
+                {language === "he" ? "דמויות בחבורה" : "Party Characters"}
+              </h3>
               <div className={styles.characterList}>
                 {characters.map((char) => (
                   <CharacterCard
