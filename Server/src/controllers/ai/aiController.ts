@@ -9,8 +9,8 @@ import {
   deleteChatSession
 } from "../../services/ai/chatService.js";
 import { generateAISummary } from "../../services/ai/summaryService.js";
+import { updateCharacterHp } from "../../services/character/characterService.js";
 
-// הגדרת ממשק לבקשת צ'אט
 interface AIChatRequestBody {
   prompt: string;
   history?: { sender: 'user' | 'gemini'; text: string }[];
@@ -19,7 +19,7 @@ interface AIChatRequestBody {
   characterId?: string;
 }
 
-// 1. טיפול בשליחת הודעה בצ'אט ושמירתה
+// 1. טיפול בשליחת הודעה בצ'אט, עדכון ה-DB ושמירתה
 export const handleAIChat = async (req: Request<{}, {}, AIChatRequestBody>, res: Response) => {
   try {
     const { prompt, history, campaignId, sessionId, characterId } = req.body;
@@ -46,12 +46,25 @@ export const handleAIChat = async (req: Request<{}, {}, AIChatRequestBody>, res:
       await saveMessage(activeSessionId, 'user', prompt);
     }
 
-    // שליחת הבקשה למודל Gemini
-    const replyText = await sendMessageToGemini({
+    // שליחת הבקשה למודל Gemini לקבלת תשובה מובנית
+    const aiResponsePayload = await sendMessageToGemini({
       prompt,
       history: history || [],
       campaignId,
     });
+
+    const replyText = aiResponsePayload.narrative;
+    const stateUpdates = aiResponsePayload.stateUpdates;
+
+    // 🔄 עיבוד עדכוני Game State (כמו HP) במידה והיו
+    if (stateUpdates?.hpChanges && stateUpdates.hpChanges.length > 0) {
+      for (const hpUpdate of stateUpdates.hpChanges) {
+        const targetIdOrName = hpUpdate.characterId || hpUpdate.characterName || characterId;
+        if (targetIdOrName && hpUpdate.changeAmount !== 0) {
+          await updateCharacterHp(targetIdOrName, hpUpdate.changeAmount, campaignId);
+        }
+      }
+    }
 
     // שמירת תשובת ה-AI ב-DB ובדיקת טריגר לסיכום אוטומטי
     if (activeSessionId) {
@@ -62,7 +75,6 @@ export const handleAIChat = async (req: Request<{}, {}, AIChatRequestBody>, res:
       if (campaignId && messageCount > 0 && messageCount % 30 === 0) {
         console.log(`🤖 מפעיל סיכום אוטומטי לאחר ${messageCount} הודעות בשיחה ${activeSessionId}...`);
         
-        // יצירת הסיכום ברקע כדי לא לעכב את התשובה למשתמש
         generateAISummary(campaignId, history || [], 'AUTO').catch((err) =>
           console.error("שגיאה ביצירת סיכום אוטומטי:", err)
         );
@@ -72,7 +84,8 @@ export const handleAIChat = async (req: Request<{}, {}, AIChatRequestBody>, res:
     return res.json({ 
       text: replyText,
       sessionId: activeSessionId,
-      characterId
+      characterId,
+      stateUpdates: stateUpdates || null
     });
 
   } catch (error) {
@@ -81,7 +94,7 @@ export const handleAIChat = async (req: Request<{}, {}, AIChatRequestBody>, res:
   }
 };
 
-// 2. יצירת סשן שיחה חדש بشكل יזום
+// 2. יצירת סשן שיחה חדש
 export const handleCreateSession = async (req: Request, res: Response) => {
   try {
     const { campaignId, title } = req.body as { campaignId: string; title?: string };
@@ -96,7 +109,7 @@ export const handleCreateSession = async (req: Request, res: Response) => {
   }
 };
 
-// 3. שליפת כל השיחות המשויכות לקמפיין (עבור סרגל הצד)
+// 3. שליפת כל השיחות המשויכות לקמפיין
 export const handleGetSessions = async (req: Request<{ campaignId: string }>, res: Response) => {
   try {
     const { campaignId } = req.params;
@@ -111,7 +124,7 @@ export const handleGetSessions = async (req: Request<{ campaignId: string }>, re
   }
 };
 
-// 4. שליפת כל ההודעות של שיחה ספציפית (לפתיחת שיחה קיימת)
+// 4. שליפת כל ההודעות של שיחה ספציפית
 export const handleGetSessionMessages = async (req: Request<{ sessionId: string }>, res: Response) => {
   try {
     const { sessionId } = req.params;
@@ -136,7 +149,7 @@ export const handleDeleteSession = async (req: Request<{ sessionId: string }>, r
     await deleteChatSession(sessionId);
     return res.json({ success: true, message: "השיחה נמחקה בהצלחה." });
   } catch (error) {
-    console.error("Error in handleDeleteSession:", error);
+    console.error("Error handleDeleteSession:", error);
     return res.status(500).json({ error: "שגיאה במחיקת השיחה." });
   }
 };

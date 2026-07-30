@@ -1,8 +1,6 @@
-// backend/src/controllers/characterController.ts
-
 import { Request, Response } from "express";
-
 import * as characterService from "../services/character/characterService.js";
+import { prisma } from "../config/db.js";
 
 interface BeyondParams {
   beyondId?: string;
@@ -12,8 +10,7 @@ interface BeyondParams {
 /**
  * GET /characters/beyond/:beyondId
  *
- * Get live character data from D&D Beyond.
- * Does not save anything to DB.
+ * Get live character data from D&D Beyond, BUT overlay local HP if character exists in DB.
  */
 export const getBeyondCharacterLive = async (
   req: Request<BeyondParams>,
@@ -28,7 +25,19 @@ export const getBeyondCharacterLive = async (
       });
     }
 
+    // 1. קריאת הנתונים בלייב מ-D&D Beyond
     const character = await characterService.getBeyondCharacterLive(beyondId);
+
+    // 2. בדיקה אם יש דמות כזו ב-DB המקומי כדי למשוך את ה-HP המעודכן שלה
+    const dbCharacter = await prisma.character.findUnique({
+      where: { beyondId: String(beyondId) },
+    });
+
+    // 3. אם יש דמות ב-DB, דורסים רק את ה-HP בלייב עם ה-HP מה-DB המקומי!
+    if (dbCharacter) {
+      // currentHp may be null in DB, so only override if it's a number
+      character.hp.current = dbCharacter.currentHp ?? character.hp.current;
+    }
 
     return res.status(200).json(character);
   } catch (error) {
@@ -39,7 +48,6 @@ export const getBeyondCharacterLive = async (
 
     return res.status(500).json({
       message: "Failed to fetch live character",
-
       error: errorMessage,
     });
   }
@@ -47,9 +55,7 @@ export const getBeyondCharacterLive = async (
 
 /**
  * POST /characters/beyond/:beyondId
- *
- * Save or synchronize character
- * from D&D Beyond into DB.
+ * Save or synchronize character from D&D Beyond into DB.
  */
 export const saveOrSyncBeyondCharacter = async (
   req: Request<BeyondParams>,
@@ -57,7 +63,6 @@ export const saveOrSyncBeyondCharacter = async (
 ): Promise<Response> => {
   try {
     const beyondId = req.params.beyondId;
-
     const { campaignId } = req.body;
 
     if (!beyondId) {
@@ -73,7 +78,6 @@ export const saveOrSyncBeyondCharacter = async (
 
     return res.status(200).json({
       message: "Character successfully saved to Database",
-
       character,
     });
   } catch (error) {
@@ -84,7 +88,6 @@ export const saveOrSyncBeyondCharacter = async (
 
     return res.status(500).json({
       message: "Failed to save character to DB",
-
       error: errorMessage,
     });
   }
@@ -92,7 +95,6 @@ export const saveOrSyncBeyondCharacter = async (
 
 /**
  * GET /characters
- *
  * Get all characters from DB.
  */
 export const getAllCharacters = async (
@@ -101,7 +103,6 @@ export const getAllCharacters = async (
 ): Promise<Response> => {
   try {
     const characters = await characterService.getAllCharacters();
-
     return res.status(200).json(characters);
   } catch (error) {
     const errorMessage =
@@ -111,7 +112,6 @@ export const getAllCharacters = async (
 
     return res.status(500).json({
       message: "Failed to fetch characters from DB",
-
       error: errorMessage,
     });
   }
@@ -119,7 +119,6 @@ export const getAllCharacters = async (
 
 /**
  * DELETE /characters/:id
- *
  * Delete character from DB.
  */
 export const deleteCharacter = async (
@@ -148,7 +147,6 @@ export const deleteCharacter = async (
 
     return res.status(500).json({
       message: "Failed to delete character",
-
       error: errorMessage,
     });
   }

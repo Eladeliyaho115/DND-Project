@@ -6,12 +6,14 @@ interface GeminiChatDrawerProps {
   isOpen: boolean;
   onClose: () => void;
   campaignId?: string;
+  onHpChange?: (changeAmount: number, characterName?: string) => void;
 }
 
 export const GeminiChatDrawer: React.FC<GeminiChatDrawerProps> = ({
   isOpen,
   onClose,
   campaignId,
+  onHpChange,
 }) => {
   const {
     sessions,
@@ -26,7 +28,13 @@ export const GeminiChatDrawer: React.FC<GeminiChatDrawerProps> = ({
     sendMessage,
     triggerManualAISummary,
     messagesEndRef,
-  } = useGeminiChat(campaignId);
+  } = useGeminiChat(campaignId, (stateUpdates) => {
+    if (stateUpdates?.hpChanges && onHpChange) {
+      stateUpdates.hpChanges.forEach((change) => {
+        onHpChange(change.changeAmount, change.characterName);
+      });
+    }
+  });
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
@@ -38,17 +46,15 @@ export const GeminiChatDrawer: React.FC<GeminiChatDrawerProps> = ({
   };
 
   return (
-    /* 🟢 תוקן: הגדרת dir="rtl" כ-attribute רשמי של HTML במקום מחלקת CSS */
     <div 
       dir="rtl" 
-      className="w-full h-full bg-slate-900/95 border border-amber-500/30 rounded-xl shadow-2xl backdrop-blur-md flex flex-row transition-all overflow-hidden text-right"
+      className="w-full h-full bg-slate-900/95 border border-amber-500/30 rounded-xl shadow-2xl backdrop-blur-md flex flex-row transition-all overflow-hidden text-right select-text"
     >
-      
       {/* 🟢 Sidebar: רשימת השיחות */}
       <div
         className={`${
           isSidebarOpen ? 'w-64 border-l border-slate-800' : 'w-0'
-        } transition-all duration-300 overflow-hidden bg-slate-950/80 flex flex-col justify-between`}
+        } transition-all duration-300 overflow-hidden bg-slate-950/80 flex flex-col justify-between select-none`}
       >
         <div className="p-3">
           <button
@@ -90,7 +96,7 @@ export const GeminiChatDrawer: React.FC<GeminiChatDrawerProps> = ({
       <div className="flex-1 flex flex-col h-full overflow-hidden">
         
         {/* Header */}
-        <div className="p-3 border-b border-slate-800 flex justify-between items-center bg-slate-950/50">
+        <div className="p-3 border-b border-slate-800 flex justify-between items-center bg-slate-950/50 select-none">
           <div className="flex items-center gap-2">
             <button
               onClick={() => setIsSidebarOpen(!isSidebarOpen)}
@@ -110,24 +116,23 @@ export const GeminiChatDrawer: React.FC<GeminiChatDrawerProps> = ({
           </button>
         </div>
 
-        {/* Messages Feed */}
-        <div className="flex-1 p-4 overflow-y-auto space-y-3">
+        {/* Messages Feed - הוספת select-text במיכל ההודעות ובהודעות עצמן */}
+        <div className="flex-1 p-4 overflow-y-auto space-y-3 select-text">
           {messages.map((msg, i) => (
             <div
               key={i}
               className={`flex ${msg.sender === 'user' ? 'justify-start' : 'justify-end'}`}
             >
-              {/* 🟢 תוקן: הוספת dir="auto" ו-text-right למעטפת ההודעות כדי להתמודד עם שפות מעורבות */}
               <div
                 dir="auto"
-                className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-xs leading-relaxed text-right ${
+                className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-xs leading-relaxed text-right select-text ${
                   msg.sender === 'user'
                     ? 'bg-amber-500 text-slate-950 font-medium rounded-bl-none'
                     : 'bg-slate-800 text-slate-100 border border-slate-700/60 rounded-br-none prose prose-invert prose-xs max-w-none text-right [direction:inherit]'
                 }`}
               >
                 {msg.sender === 'user' ? (
-                  <p className="whitespace-pre-wrap">{msg.text}</p>
+                  <p className="whitespace-pre-wrap select-text">{msg.text}</p>
                 ) : (
                   <ReactMarkdown>{msg.text}</ReactMarkdown>
                 )}
@@ -146,7 +151,7 @@ export const GeminiChatDrawer: React.FC<GeminiChatDrawerProps> = ({
         </div>
 
         {/* Quick Prompts & Actions */}
-        <div className="p-2 border-t border-slate-800/60 bg-slate-950/30 flex gap-2 overflow-x-auto text-[11px]">
+        <div className="p-2 border-t border-slate-800/60 bg-slate-950/30 flex gap-2 overflow-x-auto text-[11px] select-none">
           <button
             onClick={triggerManualAISummary}
             disabled={loading}
@@ -171,19 +176,18 @@ export const GeminiChatDrawer: React.FC<GeminiChatDrawerProps> = ({
 
         {/* Input Form */}
         <form onSubmit={handleSubmit} className="p-3 border-t border-slate-800 bg-slate-950/80 flex gap-2">
-          {/* 🟢 תוקן: הוספת dir="auto" לשדה הקלט כדי שטקסט בעברית ובאנגלית יוקלד בכיוון הנכון */}
           <input
             type="text"
             dir="auto"
             placeholder="שאל חוק, בקש רעיון ל-NPC..."
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            className="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-amber-500 transition text-right"
+            className="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-amber-500 transition text-right select-text"
           />
           <button
             type="submit"
             disabled={!input.trim() || loading}
-            className="bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold px-4 py-2 rounded-xl text-xs transition disabled:opacity-50"
+            className="bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold px-4 py-2 rounded-xl text-xs transition disabled:opacity-50 select-none"
           >
             שלח
           </button>

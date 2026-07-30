@@ -49,6 +49,29 @@ export const LiveOverlay: React.FC<LiveOverlayProps> = ({
     setCurrentMap(campaign.mapUrl);
   }, [campaign]);
 
+  // ⚡ עדכון HP מיידי בלייב עבור דמויות במסך
+  const handleHpChange = (changeAmount: number, targetName?: string) => {
+    setCharacters((prev) =>
+      prev.map((char) => {
+        // אם הוגדר שם ספציפי – מעדכן רק אותו, אחרת מעדכן את כולן / הראשונה
+        if (!targetName || char.name.toLowerCase().includes(targetName.toLowerCase())) {
+          const newCurrent = Math.min(
+            char.hp.max,
+            Math.max(0, char.hp.current + changeAmount)
+          );
+          return {
+            ...char,
+            hp: {
+              ...char.hp,
+              current: newCurrent,
+            },
+          };
+        }
+        return char;
+      })
+    );
+  };
+
   const handleAddCharacter = (newChar: Character) => {
     setCharacters((prev) => [...prev, newChar]);
   };
@@ -227,6 +250,7 @@ export const LiveOverlay: React.FC<LiveOverlayProps> = ({
                   isOpen={isChatOpen}
                   onClose={() => setIsChatOpen(false)}
                   campaignId={campaign.id}
+                  onHpChange={handleHpChange}
                 />
               </div>
             )}

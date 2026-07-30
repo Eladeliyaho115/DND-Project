@@ -14,9 +14,15 @@ export interface ChatSession {
   updatedAt: string;
 }
 
+export interface StateUpdates {
+  hpChanges?: Array<{ characterName?: string; beyondId?: string; changeAmount: number }>;
+  [key: string]: any;
+}
+
 export interface ChatResponse {
   text: string;
   sessionId: string;
+  stateUpdates?: StateUpdates;
 }
 
 /**
@@ -27,7 +33,7 @@ export const sendMessageToGemini = async (
   history: ChatMessage[],
   campaignId?: string,
   sessionId?: string
-): Promise<{ text: string; sessionId: string }> => {
+): Promise<ChatResponse> => {
   try {
     const response = await api.post<ChatResponse>('/ai/chat', {
       prompt,

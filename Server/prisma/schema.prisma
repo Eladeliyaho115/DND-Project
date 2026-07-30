@@ -18,7 +18,7 @@ model User {
   username  String      @unique
   password  String
   characters Character[]
-  campaigns Campaign[]  // משתמש יכול לנהל/להחזיק מספר מערכות
+  campaigns Campaign[]
   createdAt DateTime    @default(now())
   updatedAt DateTime    @updatedAt
 }
@@ -30,14 +30,14 @@ model Campaign {
   id          String        @id @default(uuid())
   title       String
   description String?
-  status      String        @default("active") // "active" | "completed"
+  status      String        @default("active")
   bgUrl       String        @default("https://images.unsplash.com/photo-1518709268805-4e9042af9f23")
   mapUrl      String?       @default("https://media.discordapp.net/attachments/1019738816350781451/1531667737682772051/fantasy_world_map.png?ex=6a6a0c3d&is=6a68babd&hm=7e25396e85fe405c470bfbd5e7358284d2f11f3bb9978fa7513be7d475db5a50&=&format=webp&quality=lossless&width=930&height=698")
   userId      String?
   user        User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
   characters  Character[]
   summaries   Summary[]
-  chatSessions ChatSession[] // קשר לקבלת כל סשני השיחות של המערכה
+  chatSessions ChatSession[]
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
 }
@@ -47,11 +47,7 @@ model Campaign {
 // ==========================================
 model Character {
   id               String    @id @default(uuid())
-  
-  // מזהה ייחודי מול D&D Beyond
   beyondId         String    @unique 
-  
-  // מידע בסיסי
   name             String
   player           String    @default("Player")
   avatarUrl        String?
@@ -61,28 +57,19 @@ model Character {
   level            Int       @default(1)
   proficiencyBonus Int       @default(2)
   initiative       Int       @default(0)
-  
-  // מדדי נתונים
   currentHp        Int?
   maxHp            Int?
   tempHp           Int?      @default(0)
   armorClass       Int?      
   speed            Int?      @default(30)
-  
-  // מבני נתונים מורכבים בפורמט JSON
   stats            Json?     
   equipment        Json?     
   spells           Json?     
   features         Json?     
-  
-  // קישור למשתמש (בעלים)
   userId           String?
   user             User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  // קישור למערכה (Campaign)
   campaignId       String?
   campaign         Campaign? @relation(fields: [campaignId], references: [id], onDelete: SetNull)
-
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 }
@@ -91,13 +78,14 @@ model Character {
 // Character Sheet
 // ==========================================
 model CharacterSheet {
-  id        String   @id @default(uuid())
-  campaignId String
-  name      String   // שם הדמות (למשל: "Gorgar")
-  pdfData   Bytes    // ה-PDF נשמר ישירות ב-DB כ-Buffer
-  updatedAt DateTime @updatedAt
+  id            String   @id @default(uuid())
+  campaignId    String
+  name          String   
+  pdfData       Bytes    
+  parsedContent String?  @db.Text // 🟢 שדה חדש לשמירת הניתוח שבוצע ב-Gemini פעם אחת בלבד בעת ההעלאה
+  updatedAt     DateTime @updatedAt
 
-  @@unique([campaignId, name]) // מקור יחידי לדמות אחת בקמפיין
+  @@unique([campaignId, name])
 }
 
 // ==========================================
@@ -107,13 +95,11 @@ model Summary {
   id            String       @id @default(uuid())
   campaignId    String
   campaign      Campaign     @relation(fields: [campaignId], references: [id], onDelete: Cascade)
-  
-  // קישור אופציונלי לשיחה שממנה נוצר הסיכום
   chatSessionId String?
   chatSession   ChatSession? @relation(fields: [chatSessionId], references: [id], onDelete: SetNull)
-  
   content       String       @db.Text
-  createdVia    String       // 'MANUAL' | 'ON_DEMAND' | 'AUTO'
+  parsedContent String?      @db.Text // 🟢 שדה חדש לשמירת הניתוח מה-PDF
+  createdVia    String       
   pdfUrl        String?      @db.Text
   createdAt     DateTime     @default(now())
 }
@@ -127,7 +113,7 @@ model ChatSession {
   campaignId  String
   campaign    Campaign      @relation(fields: [campaignId], references: [id], onDelete: Cascade)
   messages    ChatMessage[]
-  summaries   Summary[]     // הסיכומים שנוצרו מתוך השיחה הזו
+  summaries   Summary[]     
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
 }
@@ -139,7 +125,7 @@ model ChatMessage {
   id          String      @id @default(uuid())
   sessionId   String
   chatSession ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-  sender      String      // 'user' או 'gemini'
+  sender      String      
   text        String      @db.Text
   createdAt   DateTime    @default(now())
 }

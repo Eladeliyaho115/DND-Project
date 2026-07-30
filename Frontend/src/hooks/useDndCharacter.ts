@@ -1,63 +1,74 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import axios from 'axios';
 import { fetchLiveDndBeyondCharacter } from '../services/dndBeyondService';
 import type { Character } from '../types/character';
 
 export const useDndCharacter = (beyondId?: string, intervalMs: number = 5000) => {
+  // 1. useState
   const [character, setCharacter] = useState<Character | null>(null);
+  // 2. useState
   const [loading, setLoading] = useState<boolean>(false);
+  // 3. useState
   const [error, setError] = useState<string | null>(null);
 
-  // רפרנס לבדיקה אם זו הקריאה הראשונית (כדי למנוע ריצוד Loading בכל 5 שניות)
+  // 4. useRef
   const isInitialLoad = useRef(true);
 
-  useEffect(() => {
+  // 5. useCallback - טעינת דמות
+  const loadCharacter = useCallback(async () => {
     if (!beyondId) return;
 
-    let isMounted = true;
+    if (isInitialLoad.current) {
+      setLoading(true);
+    }
 
-    const loadCharacter = async () => {
-      // הופכים את Loading ל-true רק בטעינה הראשונית הראשונה
+    try {
+      const data = await fetchLiveDndBeyondCharacter(beyondId);
+      setCharacter(data);
+      setError(null);
+    } catch (err: unknown) {
+      let message = 'נכשלה טעינת הדמות';
+      if (axios.isAxiosError(err)) {
+        message = err.response?.data?.message || err.message || message;
+      }
+      setError(message);
+    } finally {
       if (isInitialLoad.current) {
-        setLoading(true);
+        setLoading(false);
+        isInitialLoad.current = false;
       }
+    }
+  }, [beyondId]);
 
-      try {
-        const data = await fetchLiveDndBeyondCharacter(beyondId);
-        if (isMounted) {
-          setCharacter(data);
-          setError(null);
-        }
-      } catch (err: unknown) {
-        if (isMounted) {
-          let message = 'נכשלה טעינת הדמות מ-D&D Beyond';
-          if (axios.isAxiosError(err)) {
-            message = err.response?.data?.message || err.message || message;
-          }
-          setError(message);
-        }
-      } finally {
-        if (isMounted && isInitialLoad.current) {
-          setLoading(false);
-          isInitialLoad.current = false; // מסמנים שהטעינה הראשונית הסתיימה
-        }
-      }
-    };
+  // 6. useCallback - עדכון HP בלייב
+  const applyHpChange = useCallback((changeAmount: number) => {
+    setCharacter((prevChar) => {
+      if (!prevChar) return null;
+      const newHp = Math.min(
+        prevChar.hp.max,
+        Math.max(0, prevChar.hp.current + changeAmount)
+      );
+      return {
+        ...prevChar,
+        hp: {
+          ...prevChar.hp,
+          current: newHp,
+        },
+      };
+    });
+  }, []);
 
-    // איפוס הרפרנס כש-beyondId משתנה
+  // 7. useEffect - פולינג
+  useEffect(() => {
     isInitialLoad.current = true;
-
-    // קריאה ראשונית
     loadCharacter();
 
-    // פולינג בלופ (Silent Refresh)
     const interval = setInterval(loadCharacter, intervalMs);
 
     return () => {
-      isMounted = false;
       clearInterval(interval);
     };
-  }, [beyondId, intervalMs]);
+  }, [beyondId, intervalMs, loadCharacter]);
 
-  return { character, loading, error };
+  return { character, loading, error, refreshCharacter: loadCharacter, applyHpChange };
 };

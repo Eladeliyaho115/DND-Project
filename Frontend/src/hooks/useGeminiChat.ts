@@ -7,6 +7,7 @@ import {
   deleteSession,
   type ChatMessage,
   type ChatSession,
+  type StateUpdates,
 } from "../services/geminiService";
 import { generateAISummary } from "../services/summaryService";
 
@@ -15,7 +16,10 @@ const INITIAL_MESSAGE: ChatMessage = {
   text: "שלום! אני עוזר ה-D&D שלך. שאל אותי חוקים, בקש תיאורי סביבה, או מחולל רעיונות ל-NPCs בלייב!",
 };
 
-export const useGeminiChat = (campaignId?: string) => {
+export const useGeminiChat = (
+  campaignId?: string,
+  onStateUpdate?: (stateUpdates: StateUpdates) => void
+) => {
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([INITIAL_MESSAGE]);
@@ -138,6 +142,11 @@ export const useGeminiChat = (campaignId?: string) => {
         campaignId,
         currentSessionId || undefined,
       );
+
+      // ⚡ במידה והשרת מחזיר שינויי State (כמו HP) מפעילים את ה-Callback
+      if (res.stateUpdates && onStateUpdate) {
+        onStateUpdate(res.stateUpdates);
+      }
 
       // עדכון ה-sessionId במידה ונוצר כעת סשן חדש בלייב בשרת
       if (!currentSessionId && res.sessionId) {

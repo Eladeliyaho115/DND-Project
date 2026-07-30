@@ -4,7 +4,6 @@ import { GoogleGenAI } from '@google/genai';
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
-// פונקציית רנדור מעוצבת מטקסט Markdown ל-PDF
 export const createPDFBuffer = (title: string, markdownText: string): Promise<Buffer> => {
   return new Promise((resolve, reject) => {
     try {
@@ -18,7 +17,6 @@ export const createPDFBuffer = (title: string, markdownText: string): Promise<Bu
       doc.on('end', () => resolve(Buffer.concat(buffers)));
       doc.on('error', (err) => reject(err));
 
-      // 1. כותרת ראשית מעוצבת
       doc
         .font('Helvetica-Bold')
         .fontSize(20)
@@ -27,7 +25,6 @@ export const createPDFBuffer = (title: string, markdownText: string): Promise<Bu
       
       doc.moveDown(0.5);
       
-      // קו מפריד מעוצב מתחת לכותרת
       doc
         .moveTo(50, doc.y)
         .lineTo(545, doc.y)
@@ -37,7 +34,6 @@ export const createPDFBuffer = (title: string, markdownText: string): Promise<Bu
 
       doc.moveDown(1);
 
-      // 2. פירוק ה-Markdown לשורות וניתוח עיצוב
       const lines = markdownText.split('\n');
 
       lines.forEach((line) => {
@@ -94,40 +90,51 @@ export const createPDFBuffer = (title: string, markdownText: string): Promise<Bu
   });
 };
 
-// 1. פונקציית סיכום ידני מאוחדת (תומכת בטקסט חופשי, קובץ PDF, או שניהם)
 export const createManualSummary = async (campaignId: string, content?: string, pdfUrl?: string) => {
   return await prisma.summary.create({
     data: {
       campaignId,
       content: content || (pdfUrl ? "מצורף קובץ PDF של סיכום הקמפיין להלן." : "סיכום ידני"),
+      parsedContent: content || null,
       createdVia: 'MANUAL',
       pdfUrl: pdfUrl || null,
     },
   });
 };
 
-// 2. פונקציית סיכום ה-AI (יוצרת PDF אוטומטי ושומרת ב-DB)
+/**
+ * מחולל סיכומים מבוסס AI המשתמש ב-Gemini 3.5-flash-lite
+ */
 export const generateAISummary = async (
   campaignId: string,
   history: { sender: string; text: string }[],
   createdVia: 'ON_DEMAND' | 'AUTO' = 'ON_DEMAND'
 ) => {
+  console.log(`📜 מפיק סיכום קמפיין מבוסס Gemini...`);
+
   const prompt = `
-You are a D&D Campaign Historian. 
-Summarize the following session chat log into a clear narrative summary. 
-Include key achievements, decisions, and outcomes.
+You are a D&D Campaign Historian.
+Summarize the following session chat log into a structured narrative campaign log for future DM context.
+
+CRITICAL RULE (STRICT NO HALLUCINATIONS):
+Only include facts, events, and details EXPLICITLY established in the chat log. Do NOT invent motivations, unrevealed plot twists, items, or outcomes. Preserve uncertainty if players don't know something yet.
+
+STRUCTURE YOUR SUMMARY WITH:
+1. Key Plot Events & Achievements
+2. Active Quests & Unresolved Story Hooks
+3. Important NPCs Met & Relationship Status (e.g., friendly, hostile, suspicious)
+4. Items, Loot, & Resources Acquired or Lost
+5. Current Party Location & Immediate Next Objectives
 
 Chat Log:
 ${history.map((m) => `${m.sender.toUpperCase()}: ${m.text}`).join('\n')}
+
+Format output cleanly in Markdown using the primary language of the chat log (Hebrew or English).
 `;
 
-  const response = await ai.models.generateContent({
-    model: 'gemini-3.5-flash-lite',
-    contents: prompt,
-  });
+  let summaryText = await generateGeminiSummaryText(prompt);
 
-  const summaryText = response.text || 'No summary text generated.';
-
+  // יצירת קובץ ה-PDF
   let pdfBase64 = '';
   try {
     const pdfBuffer = await createPDFBuffer(`Campaign Summary - ${new Date().toLocaleDateString()}`, summaryText);
@@ -140,13 +147,27 @@ ${history.map((m) => `${m.sender.toUpperCase()}: ${m.text}`).join('\n')}
     data: {
       campaignId,
       content: summaryText,
+      parsedContent: summaryText,
       createdVia,
       pdfUrl: pdfBase64 || null,
     },
   });
 };
 
-// 3. שליפת כל הסיכומים המשויכים לקמפיין
+const generateGeminiSummaryText = async (prompt: string): Promise<string> => {
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-3.5-flash-lite',
+      contents: prompt,
+    });
+
+    return response.text || 'No summary text generated.';
+  } catch (err) {
+    console.error('❌ שגיאה ביצירת סיכום עם Gemini:', err);
+    return 'Failed to generate campaign summary.';
+  }
+};
+
 export const getSummariesByCampaign = async (campaignId: string) => {
   return await prisma.summary.findMany({
     where: { campaignId },
@@ -154,7 +175,6 @@ export const getSummariesByCampaign = async (campaignId: string) => {
   });
 };
 
-// 4. מחיקת סיכום לפי ID
 export const deleteSummaryById = async (summaryId: string) => {
   return await prisma.summary.delete({
     where: { id: summaryId },

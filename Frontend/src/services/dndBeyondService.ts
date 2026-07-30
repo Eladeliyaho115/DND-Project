@@ -2,10 +2,21 @@ import { api } from '../api/axiosClient';
 import type { Character } from '../types/character';
 import type { Campaign } from '../types/campaign';
 
-// קריאה בלייב - מיועד ל-Hook של ה-5 שניות
+// קריאה בלייב מ-D&D Beyond (לכל הנתונים העדכניים של הדמות)
 export const fetchLiveDndBeyondCharacter = async (beyondId: string): Promise<Character> => {
   const response = await api.get<Character>(`/characters/beyond/${beyondId}/live`);
   return response.data;
+};
+
+// שליפת הנתונים המקומיים מה-DB (בשביל ה-HP המעודכן)
+export const fetchCharacterFromDb = async (beyondId: string): Promise<Character | null> => {
+  try {
+    const response = await api.get<Character>(`/characters/beyond/${beyondId}`);
+    return response.data;
+  } catch (err) {
+    // אם הדמות עוד לא קיימת ב-DB, נחזיר null
+    return null;
+  }
 };
 
 // שמירה / הוספה ל-DB - מקבל גם campaignId כדי לשייך דמות למערכה
@@ -27,4 +38,3 @@ export const fetchCampaignWithCharacters = async (campaignId: string): Promise<C
   const response = await api.get<Campaign>(`/campaigns/${campaignId}`);
   return response.data;
 };
-

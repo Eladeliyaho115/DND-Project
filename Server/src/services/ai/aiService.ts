@@ -1,14 +1,27 @@
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI, Type } from "@google/genai";
+import Groq from "groq-sdk";
 import { getCharacterSheetPDFsByCampaign } from "../character/characterSheetPDFService.js";
-import { getSummariesByCampaign } from "./summaryService.js"; // 👈 ייבוא לשליפת הסיכומים
-import fs from "fs";
-import path from "path";
+import { getSummariesByCampaign } from "./summaryService.js";
 
+// אתחול SDKs
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
 export interface ChatMessage {
   sender: "user" | "gemini";
   text: string;
+}
+
+export interface GameStateUpdates {
+  hpChanges?: { characterName?: string; characterId?: string; changeAmount: number }[];
+  inCombat?: boolean;
+  location?: string;
+  currentObjective?: string;
+}
+
+export interface AIResponsePayload {
+  narrative: string;
+  stateUpdates?: GameStateUpdates;
 }
 
 interface ChatOptions {
@@ -17,40 +30,134 @@ interface ChatOptions {
   campaignId?: string;
 }
 
-export const sendMessageToGemini = async ({
-  prompt,
-  history,
-  campaignId,
-}: ChatOptions): Promise<string> => {
-  console.log("-----------------------------------------");
-  console.log("📥 קיבלתי בקשת צ'אט חדשה!");
-  console.log("🆔 campaignId שהתקבל מהפרונט:", campaignId);
+const SYSTEM_INSTRUCTION = `
+You are an expert Dungeon Master (DM) running a D&D 5e campaign using the updated 2024 Core Rules.
 
-  const systemInstruction = `
-You are an expert, highly creative, and engaging Dungeon Master (DM) running a D&D 5e campaign using the updated 2024 Core Rules.
+INTERNAL REASONING (Before responding):
+1. Analyze player action and current location/scene state.
+2. Determine applicable 2024 5e rules, DCs, or skill checks needed.
+3. Plan environmental consequences without robbing player agency.
 
-YOUR RESPONSIBILITIES & BEHAVIOR:
-1. RULE EXPERT (2024 5e): You follow and apply D&D 5e 2024 rules mechanics accurately.
-2. BEGINNER GUIDANCE:
-   - If a player takes an action requiring mechanics (combat, skill checks, spells), guide them step-by-step.
-3. STORYTELLING & IMMERSION:
-   - Provide rich descriptions.
-   - Always end with a prompt: "What do you do?"
-4. CHARACTER SHEET AWARENESS:
-   - Carefully analyze all attached PDF character sheets. Use exact stats, HP, AC, traits, and spells from them.
-5. CAMPAIGN HISTORY & SUMMARIES AWARENESS:
-   - You have access to attached campaign summaries and session logs. Always refer to past events, choices, NPCs, and lore from these summaries to maintain seamless continuity.
-6. LANGUAGE:
-   - Respond in the primary language the player addresses you in (Hebrew or English).
+CORE RULES & BEHAVIOR:
+1. IMMERSIVE STORYTELLING: Describe scenes dynamically and concisely (1-3 paragraphs). Keep the momentum high.
+2. DM GUIDANCE: Guide players step-by-step when rolls, spells, or mechanics are needed (e.g., "Roll a DC 13 Wisdom (Perception) check").
+3. ENGAGEMENT: Always end your narrative response with a direct prompt for action (e.g., "What do you do?" / "How do you respond?").
+4. CONTEXT AWARENESS: Carefully use provided extracted character data and past campaign logs.
+5. LANGUAGE: Respond in the primary language the player addresses you in (Hebrew or English).
+
+JSON OUTPUT REQUIREMENTS:
+You MUST return a JSON object with this EXACT structure:
+{
+  "narrative": "Story text here...",
+  "stateUpdates": {
+    "hpChanges": [{"characterName": "Name", "changeAmount": -5}],
+    "inCombat": true/false,
+    "location": "Location Name",
+    "currentObjective": "Objective text"
+  }
+}
+If an event causes damage/healing, populate hpChanges with negative (damage) or positive (healing) numbers.
 `;
 
+// הפונקציה הראשית
+export const sendMessageToGemini = async (options: ChatOptions): Promise<AIResponsePayload> => {
+  const provider = process.env.AI_PROVIDER || "groq";
+
+  console.log("-----------------------------------------");
+  console.log(`📥 קיבלתי בקשת צ'אט חדשה! [Runtime Provider: ${provider.toUpperCase()}]`);
+
+  if (provider === "groq") {
+    try {
+      return await sendMessageToGroqFast(options);
+    } catch (err) {
+      console.error("⚠️ שגיאה ב-Groq API! עובר ל-Gemini Direct כ-Fallback...", err);
+      return await sendMessageToGeminiDirect(options);
+    }
+  }
+
+  return await sendMessageToGeminiDirect(options);
+};
+
+/**
+ * ⚡ שליחה מהירה ל-Groq: שולף את המידע שמוכן ב-DB מבלי להמתין ל-Gemini!
+ */
+const sendMessageToGroqFast = async ({ prompt, history, campaignId }: ChatOptions): Promise<AIResponsePayload> => {
+  let contextText = "";
+
+  if (campaignId) {
+    // 1. שליפה מהירה של דפי הדמות מה-DB
+    try {
+      const characterSheets = await getCharacterSheetPDFsByCampaign(campaignId);
+      for (const sheet of characterSheets) {
+        if (sheet.parsedContent) {
+          contextText += `\n[PARSED CHARACTER SHEET FOR "${sheet.name}"]:\n${sheet.parsedContent}\n`;
+        }
+      }
+    } catch (err) {
+      console.error("❌ שגיאה בשליפת דפי דמות מה-DB:", err);
+    }
+
+    // 2. שליפה מהירה של סיכומי קמפיין מה-DB
+    try {
+      const campaignSummaries = await getSummariesByCampaign(campaignId);
+      const chronologicalSummaries = [...campaignSummaries].reverse();
+
+      for (const summary of chronologicalSummaries) {
+        if (summary.parsedContent) {
+          contextText += `\n[CAMPAIGN MEMORY]: ${summary.parsedContent}\n`;
+        } else if (summary.content) {
+          contextText += `\n[CAMPAIGN MEMORY]: ${summary.content}\n`;
+        }
+      }
+    } catch (err) {
+      console.error("❌ שגיאה בשליפת סיכומי קמפיין מה-DB:", err);
+    }
+  }
+
+  console.log(`📊 אורך הקונטקסט שנשלח ל-Groq (מתוך DB): ${contextText.length} תווים.`);
+
+  const messages: any[] = [{ role: "system", content: SYSTEM_INSTRUCTION }];
+
+  const validHistory = history.filter(
+    (msg) => msg.text !== "שלום! אני עוזר ה-D&D שלך. שאל אותי חוקים, בקש תיאורי סביבה, או מחולל רעיונות ל-NPCs בלייב!"
+  );
+  const recentHistory = validHistory.slice(-20);
+
+  recentHistory.forEach((msg) => {
+    messages.push({
+      role: msg.sender === "user" ? "user" : "assistant",
+      content: msg.text,
+    });
+  });
+
+  const finalUserPrompt = contextText 
+    ? `=== CONTEXT DATA ===\n${contextText}\n=== PLAYER ACTION / QUESTION ===\n${prompt}`
+    : prompt;
+
+  messages.push({ role: "user", content: finalUserPrompt });
+
+  // הרצה סופר מהירה ב-Groq
+  const completion = await groq.chat.completions.create({
+    model: "qwen/qwen3.6-27b",
+    messages: messages,
+    temperature: 0.7,
+    response_format: { type: "json_object" },
+  });
+  // 🎯 הדפסת המודל שהתקבל בפועל מ-Groq
+console.log('🤖 Active Model Used:', completion.model);
+
+  const responseText = completion.choices[0]?.message?.content || "{}";
+  return JSON.parse(responseText) as AIResponsePayload;
+};
+
+/**
+ * Fallback ל-Gemini Direct במידה ו-Groq נכשל
+ */
+const sendMessageToGeminiDirect = async ({ prompt, history, campaignId }: ChatOptions): Promise<AIResponsePayload> => {
   const contents: any[] = [];
 
-  // 1. סינון והוספת היסטוריית השיחה (20 הודעות אחרונות)
   const validHistory = history.filter(
-    (msg) =>
-      msg.text !==
-      "שלום! אני עוזר ה-D&D שלך. שאל אותי חוקים, בקש תיאורי סביבה, או מחולל רעיונות ל-NPCs בלייב!",
+    (msg) => msg.text !== "שלום! אני עוזר ה-D&D שלך. שאל אותי חוקים, בקש תיאורי סביבה, או מחולל רעיונות ל-NPCs בלייב!"
   );
   const recentHistory = validHistory.slice(-20);
 
@@ -61,102 +168,61 @@ YOUR RESPONSIBILITIES & BEHAVIOR:
     });
   });
 
-  // 2. הכנת חלק המשתמש הנוכחי
   const currentUserParts: any[] = [];
 
-  // נצרף דפי דמות וסיכומים רק בתחילת שיחה כדי לחסוך ב-Tokens
-  const isEarlySession = recentHistory.length <= 2;
-
-  if (campaignId && isEarlySession) {
-    // ----------------------------------------------------------------------
-    //  א. צירוף דפי דמות (PDF)
-    // ----------------------------------------------------------------------
-    const characterSheets = await getCharacterSheetPDFsByCampaign(campaignId);
-
-    if (characterSheets.length > 0) {
-      console.log(`📑 מצרף ${characterSheets.length} דפי דמות PDF לקונטקסט של Gemini.`);
+  if (campaignId) {
+    try {
+      const characterSheets = await getCharacterSheetPDFsByCampaign(campaignId);
       characterSheets.forEach((sheet) => {
-        currentUserParts.push({
-          inlineData: {
-            mimeType: "application/pdf",
-            data: Buffer.from(sheet.pdfData).toString("base64"),
-          },
-        });
-        currentUserParts.push({
-          text: `[System Context: Above is the attached character sheet PDF for "${sheet.name}"]`,
-        });
+        if (sheet.parsedContent) {
+          currentUserParts.push({ text: `[CHARACTER SHEET "${sheet.name}"]: ${sheet.parsedContent}` });
+        }
       });
-    }
-
-    // ----------------------------------------------------------------------
-    //  ב. צירוף סיכומי קמפיין (טקסט ו-PDF מתוך DB/דיסק)
-    // ----------------------------------------------------------------------
-    const campaignSummaries = await getSummariesByCampaign(campaignId);
-
-    if (campaignSummaries.length > 0) {
-      console.log(`📜 מצרף ${campaignSummaries.length} סיכומי קמפיין לקונטקסט של Gemini.`);
-
-      for (const summary of campaignSummaries) {
-        // אם יש תוכן טקסטואלי לסיכום
-        if (summary.content) {
-          currentUserParts.push({
-            text: `[System Context: Campaign Summary Log (${summary.createdAt.toLocaleDateString()}): ${summary.content}]`,
-          });
-        }
-
-        // אם יש קובץ PDF מצורף לסיכום (Base64 או נתיב לדיסק local/uploads)
-        if (summary.pdfUrl) {
-          try {
-            let pdfBuffer: Buffer | null = null;
-
-            if (summary.pdfUrl.startsWith("data:application/pdf;base64,")) {
-              // PDF השמור ב-Base64 ב-DB
-              const base64Data = summary.pdfUrl.replace(/^data:application\/pdf;base64,/, "");
-              pdfBuffer = Buffer.from(base64Data, "base64");
-            } else if (summary.pdfUrl.startsWith("/uploads/")) {
-              // PDF השמור בתיקיית ה-uploads בשרת
-              const filePath = path.join(process.cwd(), summary.pdfUrl);
-              if (fs.existsSync(filePath)) {
-                pdfBuffer = fs.readFileSync(filePath);
-              }
-            }
-
-            if (pdfBuffer) {
-              currentUserParts.push({
-                inlineData: {
-                  mimeType: "application/pdf",
-                  data: pdfBuffer.toString("base64"),
-                },
-              });
-              currentUserParts.push({
-                text: `[System Context: Above is an attached campaign summary PDF from ${summary.createdAt.toLocaleDateString()}]`,
-              });
-            }
-          } catch (fileErr) {
-            console.error("Failed to process summary PDF for Gemini:", fileErr);
-          }
-        }
-      }
+    } catch (err) {
+      console.error("Error fetching character sheets for Gemini fallback:", err);
     }
   }
 
-  // הוספת הפרומפט הנוכחי של המשתמש
   currentUserParts.push({ text: prompt });
+  contents.push({ role: "user", parts: currentUserParts });
 
-  contents.push({
-    role: "user",
-    parts: currentUserParts,
-  });
-
-  // 3. שליחה למודל gemini-3.5-flash-lite
   const response = await ai.models.generateContent({
-    model: "gemini-3.5-flash-lite",
+    model: "gemini-3.6-flash",
     contents: contents,
     config: {
-      systemInstruction: systemInstruction,
+      systemInstruction: SYSTEM_INSTRUCTION,
       temperature: 0.7,
+      responseMimeType: "application/json",
+      responseSchema: {
+        type: Type.OBJECT,
+        properties: {
+          narrative: { type: Type.STRING },
+          stateUpdates: {
+            type: Type.OBJECT,
+            properties: {
+              hpChanges: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    characterName: { type: Type.STRING },
+                    characterId: { type: Type.STRING },
+                    changeAmount: { type: Type.NUMBER },
+                  },
+                  required: ["changeAmount"],
+                },
+              },
+              inCombat: { type: Type.BOOLEAN },
+              location: { type: Type.STRING },
+              currentObjective: { type: Type.STRING },
+            },
+          },
+        },
+        required: ["narrative"],
+      },
     },
   });
 
-  return response.text || "לא התקבלה תשובה מ-Gemini.";
+  const responseText = response.text || "{}";
+  return JSON.parse(responseText) as AIResponsePayload;
 };
