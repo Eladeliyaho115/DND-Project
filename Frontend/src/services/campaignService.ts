@@ -17,10 +17,17 @@ export const createCampaign = async (
   return response.data;
 };
 
-// 3. עדכון פרטי קמפיין (כולל title, description, bgUrl, mapUrl, status)
+// 3. עדכון פרטי קמפיין (כולל title, description, bgUrl, mapUrl, status, masterSummary)
 export const updateCampaignData = async (
   id: string, 
-  updates: { title?: string; description?: string; bgUrl?: string; mapUrl?: string; status?: string }
+  updates: { 
+    title?: string; 
+    description?: string; 
+    bgUrl?: string; 
+    mapUrl?: string; 
+    status?: string;
+    masterSummary?: string; // 👈 הוספת masterSummary
+  }
 ): Promise<Campaign> => {
   const response = await api.put<Campaign>(`/campaigns/${id}`, updates);
   return response.data;

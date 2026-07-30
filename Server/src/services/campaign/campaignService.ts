@@ -1,4 +1,5 @@
 // backend/src/services/campaign/campaignService.ts
+
 import { prisma } from "../../config/db.js";
 import { formatDbCharacterToFrontend } from "../character/characterMapper.js";
 
@@ -66,7 +67,7 @@ export const createCampaign = async (
   };
 };
 
-// 4. עדכון פרטי קמפיין (כולל סטטוס, תמונת רקע ומפת עולם)
+// 4. עדכון פרטי קמפיין (כולל סטטוס, תמונת רקע, מפת עולם ו-Master Summary)
 export const updateCampaign = async (
   campaignId: string,
   data: {
@@ -75,6 +76,7 @@ export const updateCampaign = async (
     bgUrl?: string;
     mapUrl?: string;
     status?: string;
+    masterSummary?: string; // 🟢 הוספת התמיכה בסיכום העל
   },
 ) => {
   const updatedCampaign = await prisma.campaign.update({
@@ -96,6 +98,9 @@ export const updateCampaign = async (
       }),
       ...(data.status !== undefined && {
         status: data.status,
+      }),
+      ...(data.masterSummary !== undefined && {
+        masterSummary: data.masterSummary,
       }),
     },
     include: {

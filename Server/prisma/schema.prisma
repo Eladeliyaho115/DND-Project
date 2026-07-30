@@ -13,33 +13,34 @@ datasource db {
 // User Model
 // ==========================================
 model User {
-  id        String      @id @default(uuid())
-  email     String      @unique
-  username  String      @unique
-  password  String
+  id         String      @id @default(uuid())
+  email      String      @unique
+  username   String      @unique
+  password   String
   characters Character[]
-  campaigns Campaign[]
-  createdAt DateTime    @default(now())
-  updatedAt DateTime    @updatedAt
+  campaigns  Campaign[]
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
 }
 
 // ==========================================
 // Campaign Model
 // ==========================================
 model Campaign {
-  id          String        @id @default(uuid())
-  title       String
-  description String?
-  status      String        @default("active")
-  bgUrl       String        @default("https://images.unsplash.com/photo-1518709268805-4e9042af9f23")
-  mapUrl      String?       @default("https://media.discordapp.net/attachments/1019738816350781451/1531667737682772051/fantasy_world_map.png?ex=6a6a0c3d&is=6a68babd&hm=7e25396e85fe405c470bfbd5e7358284d2f11f3bb9978fa7513be7d475db5a50&=&format=webp&quality=lossless&width=930&height=698")
-  userId      String?
-  user        User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
-  characters  Character[]
-  summaries   Summary[]
-  chatSessions ChatSession[]
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+  id            String        @id @default(uuid())
+  title         String
+  description   String?
+  status        String        @default("active")
+  bgUrl         String        @default("https://images.unsplash.com/photo-1518709268805-4e9042af9f23")
+  mapUrl        String?       @default("https://media.discordapp.net/attachments/1019738816350781451/1531667737682772051/fantasy_world_map.png?ex=6a6a0c3d&is=6a68babd&hm=7e25396e85fe405c470bfbd5e7358284d2f11f3bb9978fa7513be7d475db5a50&=&format=webp&quality=lossless&width=930&height=698")
+  masterSummary String?       @db.Text // 🟢 זיכרון לטווח ארוך (Master Campaign Summary)
+  userId        String?
+  user          User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  characters    Character[]
+  summaries     Summary[]
+  chatSessions  ChatSession[]
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
 }
 
 // ==========================================
@@ -82,7 +83,7 @@ model CharacterSheet {
   campaignId    String
   name          String   
   pdfData       Bytes    
-  parsedContent String?  @db.Text // 🟢 שדה חדש לשמירת הניתוח שבוצע ב-Gemini פעם אחת בלבד בעת ההעלאה
+  parsedContent String?  @db.Text
   updatedAt     DateTime @updatedAt
 
   @@unique([campaignId, name])
@@ -98,7 +99,7 @@ model Summary {
   chatSessionId String?
   chatSession   ChatSession? @relation(fields: [chatSessionId], references: [id], onDelete: SetNull)
   content       String       @db.Text
-  parsedContent String?      @db.Text // 🟢 שדה חדש לשמירת הניתוח מה-PDF
+  parsedContent String?      @db.Text
   createdVia    String       
   pdfUrl        String?      @db.Text
   createdAt     DateTime     @default(now())

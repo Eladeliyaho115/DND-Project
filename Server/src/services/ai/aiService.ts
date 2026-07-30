@@ -1,7 +1,8 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import Groq from "groq-sdk";
+import { prisma } from "../../config/db.js";
 import { getCharacterSheetPDFsByCampaign } from "../character/characterSheetPDFService.js";
-import { getSummariesByCampaign } from "./summaryService.js";
+import { getSummariesByCampaign } from "../ai/summaryService.js";
 
 // אתחול SDKs
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
@@ -13,21 +14,34 @@ export interface ChatMessage {
 }
 
 export interface GameStateUpdates {
-  hpChanges?: { characterName?: string; characterId?: string; changeAmount: number }[];
+  hpChanges?: {
+    characterName?: string;
+    characterId?: string;
+    changeAmount: number;
+  }[];
   inCombat?: boolean;
   location?: string;
   currentObjective?: string;
 }
 
 export interface AIResponsePayload {
+  internal_reasoning?: string;
   narrative: string;
   stateUpdates?: GameStateUpdates;
+}
+
+export interface CurrentGameState {
+  location?: string;
+  currentObjective?: string;
+  inCombat?: boolean;
+  [key: string]: any;
 }
 
 interface ChatOptions {
   prompt: string;
   history: ChatMessage[];
   campaignId?: string;
+  gameState?: CurrentGameState;
 }
 
 const SYSTEM_INSTRUCTION = `
@@ -39,15 +53,19 @@ INTERNAL REASONING (Before responding):
 3. Plan environmental consequences without robbing player agency.
 
 CORE RULES & BEHAVIOR:
-1. IMMERSIVE STORYTELLING: Describe scenes dynamically and concisely (1-3 paragraphs). Keep the momentum high.
-2. DM GUIDANCE: Guide players step-by-step when rolls, spells, or mechanics are needed (e.g., "Roll a DC 13 Wisdom (Perception) check").
-3. ENGAGEMENT: Always end your narrative response with a direct prompt for action (e.g., "What do you do?" / "How do you respond?").
-4. CONTEXT AWARENESS: Carefully use provided extracted character data and past campaign logs.
-5. LANGUAGE: Respond in the primary language the player addresses you in (Hebrew or English).
+1. IMMERSIVE STORYTELLING: Describe scenes dynamically and concisely (1-3 paragraphs). Use sensory details (lighting, sound, smell) to build atmosphere. Keep momentum high.
+2. PLAYER AGENCY & FAIL FORWARD: Never make decisions, solve puzzles, or roll checks for the player. If a player fails a check, introduce a narrative complication or cost—never a dry dead-end.
+3. DM GUIDANCE & TRANSPARENCY: Ask for rolls step-by-step before resolving outcomes (e.g., "Roll a DC 13 Wisdom (Perception) check"). Clearly state conditions, Advantage/Disadvantage, and mechanics when relevant.
+4. ENGAGEMENT: End your narrative response with a direct prompt for action (e.g., "What do you do?" / "How do you respond?") and sometimes when relevant suggest alternative approaches.
+5. CONTEXT AWARENESS: Carefully use provided extracted character data, past campaign logs, and current game state.
+6. FLEXIBILITY ("Yes, and..."): Encourage player creativity. If they propose an unconventional idea, set an appropriate DC and ability check rather than blocking them.
+7. COMBAT PACING: Keep combat turns punchy and tactical. Resolve actions incrementally, describe impact clearly, and keep track of cover and status effects.
+8. LANGUAGE: Respond in the primary language the player addresses you in (Hebrew or English).
 
 JSON OUTPUT REQUIREMENTS:
 You MUST return a JSON object with this EXACT structure:
 {
+  "internal_reasoning": "Your analysis of rules, DCs, and player actions goes here...",
   "narrative": "Story text here...",
   "stateUpdates": {
     "hpChanges": [{"characterName": "Name", "changeAmount": -5}],
@@ -59,18 +77,85 @@ You MUST return a JSON object with this EXACT structure:
 If an event causes damage/healing, populate hpChanges with negative (damage) or positive (healing) numbers.
 `;
 
+/**
+ * 🧠 בניית הקונטקסט המבוסס שכבות (GameState + Master Summary + 2 Recent Summaries + Character Sheets)
+ */
+async function buildCampaignContext(
+  campaignId?: string,
+  gameState?: CurrentGameState
+): Promise<string> {
+  let contextText = "";
+
+  // 1. זיכרון לטווח קצר - GameState ממוקד
+  if (gameState) {
+    contextText += `\n=== CURRENT GAME STATE ===\n${JSON.stringify(gameState, null, 2)}\n`;
+  }
+
+  if (!campaignId) return contextText;
+
+  // 2. זיכרון לטווח ארוך - Master Campaign Summary
+  try {
+    const campaign = await prisma.campaign.findUnique({
+      where: { id: campaignId },
+      select: { masterSummary: true },
+    });
+
+    if (campaign?.masterSummary) {
+      contextText += `\n[LONG-TERM MEMORY - MASTER CAMPAIGN SUMMARY]:\n${campaign.masterSummary}\n`;
+    }
+  } catch (err) {
+    console.error("❌ שגיאה בשליפת Master Summary:", err);
+  }
+
+  // 3. זיכרון לטווח בינוני - 2 סיכומים אחרונים
+  try {
+    const campaignSummaries = await getSummariesByCampaign(campaignId);
+    const last2Summaries = campaignSummaries.slice(0, 2).reverse();
+
+    for (const summary of last2Summaries) {
+      const summaryText = summary.parsedContent || summary.content;
+      if (summaryText) {
+        contextText += `\n[MID-TERM MEMORY - RECENT SESSION SUMMARY]:\n${summaryText}\n`;
+      }
+    }
+  } catch (err) {
+    console.error("❌ שגיאה בשליפת סיכומי קמפיין:", err);
+  }
+
+  // 4. דפי דמות
+  try {
+    const characterSheets = await getCharacterSheetPDFsByCampaign(campaignId);
+    for (const sheet of characterSheets) {
+      if (sheet.parsedContent) {
+        contextText += `\n[CHARACTER SHEET FOR "${sheet.name}"]:\n${sheet.parsedContent}\n`;
+      }
+    }
+  } catch (err) {
+    console.error("❌ שגיאה בשליפת דפי דמות:", err);
+  }
+
+  return contextText;
+}
+
 // הפונקציה הראשית
-export const sendMessageToGemini = async (options: ChatOptions): Promise<AIResponsePayload> => {
+export const sendMessageToGemini = async (
+  options: ChatOptions
+): Promise<AIResponsePayload> => {
   const provider = process.env.AI_PROVIDER || "groq";
 
   console.log("-----------------------------------------");
-  console.log(`📥 קיבלתי בקשת צ'אט חדשה! [Runtime Provider: ${provider.toUpperCase()}]`);
+  console.log(
+    `📥 קיבלתי בקשת צ'אט חדשה! [Runtime Provider: ${provider.toUpperCase()}]`
+  );
 
   if (provider === "groq") {
     try {
       return await sendMessageToGroqFast(options);
     } catch (err) {
-      console.error("⚠️ שגיאה ב-Groq API! עובר ל-Gemini Direct כ-Fallback...", err);
+      console.error(
+        "⚠️ שגיאה ב-Groq API! עובר ל-Gemini Direct כ-Fallback...",
+        err
+      );
       return await sendMessageToGeminiDirect(options);
     }
   }
@@ -79,49 +164,23 @@ export const sendMessageToGemini = async (options: ChatOptions): Promise<AIRespo
 };
 
 /**
- * ⚡ שליחה מהירה ל-Groq: שולף את המידע שמוכן ב-DB מבלי להמתין ל-Gemini!
+ * ⚡ שליחה מהירה ל-Groq
  */
-const sendMessageToGroqFast = async ({ prompt, history, campaignId }: ChatOptions): Promise<AIResponsePayload> => {
-  let contextText = "";
+const sendMessageToGroqFast = async ({
+  prompt,
+  history,
+  campaignId,
+  gameState,
+}: ChatOptions): Promise<AIResponsePayload> => {
+  const contextText = await buildCampaignContext(campaignId, gameState);
 
-  if (campaignId) {
-    // 1. שליפה מהירה של דפי הדמות מה-DB
-    try {
-      const characterSheets = await getCharacterSheetPDFsByCampaign(campaignId);
-      for (const sheet of characterSheets) {
-        if (sheet.parsedContent) {
-          contextText += `\n[PARSED CHARACTER SHEET FOR "${sheet.name}"]:\n${sheet.parsedContent}\n`;
-        }
-      }
-    } catch (err) {
-      console.error("❌ שגיאה בשליפת דפי דמות מה-DB:", err);
-    }
-
-    // 2. שליפה מהירה של סיכומי קמפיין מה-DB
-    try {
-      const campaignSummaries = await getSummariesByCampaign(campaignId);
-      const chronologicalSummaries = [...campaignSummaries].reverse();
-
-      for (const summary of chronologicalSummaries) {
-        if (summary.parsedContent) {
-          contextText += `\n[CAMPAIGN MEMORY]: ${summary.parsedContent}\n`;
-        } else if (summary.content) {
-          contextText += `\n[CAMPAIGN MEMORY]: ${summary.content}\n`;
-        }
-      }
-    } catch (err) {
-      console.error("❌ שגיאה בשליפת סיכומי קמפיין מה-DB:", err);
-    }
-  }
-
-  console.log(`📊 אורך הקונטקסט שנשלח ל-Groq (מתוך DB): ${contextText.length} תווים.`);
+  console.log(
+    `📊 אורך הקונטקסט שנשלח ל-Groq (מתוך DB + State): ${contextText.length} תווים.`
+  );
 
   const messages: any[] = [{ role: "system", content: SYSTEM_INSTRUCTION }];
 
-  const validHistory = history.filter(
-    (msg) => msg.text !== "שלום! אני עוזר ה-D&D שלך. שאל אותי חוקים, בקש תיאורי סביבה, או מחולל רעיונות ל-NPCs בלייב!"
-  );
-  const recentHistory = validHistory.slice(-20);
+  const recentHistory = history.slice(-20);
 
   recentHistory.forEach((msg) => {
     messages.push({
@@ -130,36 +189,38 @@ const sendMessageToGroqFast = async ({ prompt, history, campaignId }: ChatOption
     });
   });
 
-  const finalUserPrompt = contextText 
+  const finalUserPrompt = contextText
     ? `=== CONTEXT DATA ===\n${contextText}\n=== PLAYER ACTION / QUESTION ===\n${prompt}`
     : prompt;
 
   messages.push({ role: "user", content: finalUserPrompt });
 
-  // הרצה סופר מהירה ב-Groq
   const completion = await groq.chat.completions.create({
     model: "qwen/qwen3.6-27b",
     messages: messages,
     temperature: 0.7,
     response_format: { type: "json_object" },
   });
-  // 🎯 הדפסת המודל שהתקבל בפועל מ-Groq
-console.log('🤖 Active Model Used:', completion.model);
+
+  console.log("🤖 Active Model Used:", completion.model);
 
   const responseText = completion.choices[0]?.message?.content || "{}";
   return JSON.parse(responseText) as AIResponsePayload;
 };
 
 /**
- * Fallback ל-Gemini Direct במידה ו-Groq נכשל
+ * Fallback ל-Gemini Direct
  */
-const sendMessageToGeminiDirect = async ({ prompt, history, campaignId }: ChatOptions): Promise<AIResponsePayload> => {
-  const contents: any[] = [];
+const sendMessageToGeminiDirect = async ({
+  prompt,
+  history,
+  campaignId,
+  gameState,
+}: ChatOptions): Promise<AIResponsePayload> => {
+  const contextText = await buildCampaignContext(campaignId, gameState);
 
-  const validHistory = history.filter(
-    (msg) => msg.text !== "שלום! אני עוזר ה-D&D שלך. שאל אותי חוקים, בקש תיאורי סביבה, או מחולל רעיונות ל-NPCs בלייב!"
-  );
-  const recentHistory = validHistory.slice(-20);
+  const contents: any[] = [];
+  const recentHistory = history.slice(-20);
 
   recentHistory.forEach((msg) => {
     contents.push({
@@ -168,23 +229,14 @@ const sendMessageToGeminiDirect = async ({ prompt, history, campaignId }: ChatOp
     });
   });
 
-  const currentUserParts: any[] = [];
+  const finalUserPrompt = contextText
+    ? `=== CONTEXT DATA ===\n${contextText}\n=== PLAYER ACTION / QUESTION ===\n${prompt}`
+    : prompt;
 
-  if (campaignId) {
-    try {
-      const characterSheets = await getCharacterSheetPDFsByCampaign(campaignId);
-      characterSheets.forEach((sheet) => {
-        if (sheet.parsedContent) {
-          currentUserParts.push({ text: `[CHARACTER SHEET "${sheet.name}"]: ${sheet.parsedContent}` });
-        }
-      });
-    } catch (err) {
-      console.error("Error fetching character sheets for Gemini fallback:", err);
-    }
-  }
-
-  currentUserParts.push({ text: prompt });
-  contents.push({ role: "user", parts: currentUserParts });
+  contents.push({
+    role: "user",
+    parts: [{ text: finalUserPrompt }],
+  });
 
   const response = await ai.models.generateContent({
     model: "gemini-3.6-flash",
@@ -196,6 +248,7 @@ const sendMessageToGeminiDirect = async ({ prompt, history, campaignId }: ChatOp
       responseSchema: {
         type: Type.OBJECT,
         properties: {
+          internal_reasoning: { type: Type.STRING },
           narrative: { type: Type.STRING },
           stateUpdates: {
             type: Type.OBJECT,

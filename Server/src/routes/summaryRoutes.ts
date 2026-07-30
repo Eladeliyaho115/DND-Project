@@ -1,47 +1,37 @@
 import { Router } from "express";
 import multer from "multer";
-import nodePath from "path";
-import fs from "fs";
 import {
   handleManualSummary,
   handleAISummary,
   handleGetCampaignSummaries,
   handleDeleteSummary,
+  getMasterSummary,
+  rebuildMasterSummary,
 } from "../controllers/ai/summaryController.js";
 
 const router = Router();
 
-// 1. הגדרת תיקיית העלאה דינמית עבור סיכומים
-const uploadDir = nodePath.join(process.cwd(), "uploads", "summaries");
-
-// וודא שהתיקייה קיימת (אם לא - יצור אותה)
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
-}
-
-// 2. הגדרת האחסון של Multer
-const storage = multer.diskStorage({
-  destination: (_req, _file, cb) => {
-    cb(null, uploadDir);
-  },
-  filename: (_req, file, cb) => {
-    // יצירת שם קובץ ייחודי (זמן + שם מקורי)
-    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-    const ext = nodePath.extname(file.originalname);
-    cb(null, `summary-${uniqueSuffix}${ext}`);
+// הגדרת Multer לשמירה בזיכרון (MemoryStorage) - בדיוק כמו בדף דמות!
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 }, // מגבלה של 10MB
+  fileFilter: (_req, file, cb) => {
+    if (file.mimetype === 'application/pdf') {
+      cb(null, true);
+    } else {
+      cb(new Error('רק קובצי PDF מותרים להעלאה!'));
+    }
   },
 });
 
-const upload = multer({ storage });
-
-// 3. הגדרת ה-Routes
-// upload.single("file") מטפל בבקשה, מפרק את req.body ומחלץ את req.file!
+// Routes
 router.post("/manual", upload.single("file"), handleManualSummary);
-
 router.post("/generate", handleAISummary);
-
 router.get("/:campaignId", handleGetCampaignSummaries);
-
 router.delete("/:summaryId", handleDeleteSummary);
+
+// Master Summary Routes
+router.get("/:id/master-summary", getMasterSummary);
+router.post("/:id/rebuild-master-summary", rebuildMasterSummary);
 
 export default router;

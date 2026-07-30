@@ -1,5 +1,3 @@
-// backend/src/controllers/campaignController.ts
-
 import { Request, Response } from "express";
 import * as campaignService from "../services/campaign/campaignService.js";
 
@@ -10,7 +8,7 @@ interface CampaignParams {
 // 1. קבלת מערכה לפי ID
 export const getCampaignById = async (
   req: Request<CampaignParams>,
-  res: Response,
+  res: Response
 ): Promise<Response> => {
   try {
     const campaignId = req.params.id;
@@ -44,7 +42,7 @@ export const getCampaignById = async (
 // 2. קבלת כל המערכות
 export const getAllCampaigns = async (
   _req: Request,
-  res: Response,
+  res: Response
 ): Promise<Response> => {
   try {
     const campaigns = await campaignService.getAllCampaigns();
@@ -64,7 +62,7 @@ export const getAllCampaigns = async (
 // 3. יצירת קמפיין חדש
 export const createCampaign = async (
   req: Request,
-  res: Response,
+  res: Response
 ): Promise<Response> => {
   console.log("📥 GOT POST REQUEST TO CREATE CAMPAIGN:", req.body);
 
@@ -80,7 +78,7 @@ export const createCampaign = async (
     const campaign = await campaignService.createCampaign(
       title,
       description,
-      bgUrl,
+      bgUrl
     );
 
     return res.status(201).json(campaign);
@@ -95,14 +93,14 @@ export const createCampaign = async (
   }
 };
 
-// 4. עדכון פרטי קמפיין (כולל title, description, bgUrl, mapUrl, status)
+// 4. עדכון פרטי קמפיין (כולל title, description, bgUrl, mapUrl, status, masterSummary)
 export const updateCampaign = async (
   req: Request<CampaignParams>,
-  res: Response,
+  res: Response
 ): Promise<Response> => {
   try {
     const campaignId = req.params.id;
-    const { title, description, bgUrl, mapUrl, status } = req.body;
+    const { title, description, bgUrl, mapUrl, status, masterSummary } = req.body;
 
     if (!campaignId) {
       return res.status(400).json({
@@ -116,6 +114,7 @@ export const updateCampaign = async (
       bgUrl,
       mapUrl,
       status,
+      masterSummary,
     });
 
     return res.status(200).json(updatedCampaign);
@@ -133,7 +132,7 @@ export const updateCampaign = async (
 // 5. עדכון סטטוס קמפיין בלבד
 export const updateCampaignStatus = async (
   req: Request<CampaignParams>,
-  res: Response,
+  res: Response
 ): Promise<Response> => {
   try {
     const campaignId = req.params.id;
@@ -147,7 +146,7 @@ export const updateCampaignStatus = async (
 
     const updated = await campaignService.updateCampaignStatus(
       campaignId,
-      status,
+      status
     );
 
     return res.status(200).json(updated);
@@ -165,7 +164,7 @@ export const updateCampaignStatus = async (
 // 6. מחיקת קמפיין
 export const deleteCampaign = async (
   req: Request<CampaignParams>,
-  res: Response,
+  res: Response
 ): Promise<Response> => {
   try {
     const campaignId = req.params.id;

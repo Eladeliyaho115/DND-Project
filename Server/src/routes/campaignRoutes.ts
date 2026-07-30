@@ -4,7 +4,7 @@ import {
   getAllCampaigns,
   createCampaign,
   updateCampaignStatus,
-  updateCampaign, // 👈 1. ייבוא
+  updateCampaign,
   deleteCampaign,
 } from "../controllers/campaignController.js";
 

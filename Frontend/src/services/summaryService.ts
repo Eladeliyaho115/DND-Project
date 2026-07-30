@@ -5,13 +5,13 @@ import type {
   GetCampaignSummariesResponse 
 } from '../types/summary';
 
-// 1. יצירת סיכום ידני (אם נשלח קובץ, נשלח כ-FormData עם השדה 'file')
+// 1. יצירת סיכום ידני
 export const createManualSummary = async (campaignId: string, content?: string, file?: File) => {
   if (file) {
     const formData = new FormData();
     formData.append('campaignId', campaignId);
     if (content) formData.append('content', content);
-    formData.append('file', file); // 👈 השם 'file' חייב להיות תואם ל-upload.single("file") בשרת!
+    formData.append('file', file);
 
     const response = await api.post<SummaryResponse>('/summaries/manual', formData, {
       headers: {
@@ -28,7 +28,7 @@ export const createManualSummary = async (campaignId: string, content?: string, 
   return response.data;
 };
 
-// 2. יצירת סיכום AI (יזום ON_DEMAND או אוטומטי AUTO)
+// 2. יצירת סיכום AI
 export const generateAISummary = async (
   campaignId: string,
   history: ChatMessage[],
@@ -54,6 +54,22 @@ export const getCampaignSummaries = async (campaignId: string) => {
 export const deleteSummary = async (summaryId: string) => {
   const response = await api.delete<{ success: boolean; message: string }>(
     `/summaries/${summaryId}`
+  );
+  return response.data;
+};
+
+// 🎯 5. שליפת Master Summary
+export const getMasterSummary = async (campaignId: string) => {
+  const response = await api.get<{ id: string; title: string; masterSummary?: string }>(
+    `/summaries/${campaignId}/master-summary`
+  );
+  return response.data;
+};
+
+// 🎯 6. בנייה מחדש (Rebuild) של Master Summary מכל הסיכומים
+export const rebuildMasterSummary = async (campaignId: string) => {
+  const response = await api.post<{ message: string; masterSummary: string }>(
+    `/summaries/${campaignId}/rebuild-master-summary`
   );
   return response.data;
 };

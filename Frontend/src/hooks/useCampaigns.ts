@@ -13,7 +13,7 @@ export const useCampaigns = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
-  // טעינת הקמפיינים
+  // טעינת הקמפיינים משרת
   const loadCampaigns = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -22,7 +22,7 @@ export const useCampaigns = () => {
       setCampaigns(data);
     } catch (err: any) {
       console.error("Failed to load campaigns:", err);
-      setError("נכשלה טעינת הקמפיינים משרת");
+      setError("נכשלה טעינת הקמפיינים מהשרת");
     } finally {
       setLoading(false);
     }
@@ -32,11 +32,11 @@ export const useCampaigns = () => {
     loadCampaigns();
   }, [loadCampaigns]);
 
-  // יצירת קמפיין
+  // יצירת קמפיין חדש
   const handleCreate = async (
     title: string,
-    description: string,
-    bgUrl: string,
+    description?: string,
+    bgUrl?: string,
   ) => {
     try {
       const newCampaign = await createCampaign(title, description, bgUrl);
@@ -47,7 +47,7 @@ export const useCampaigns = () => {
     }
   };
 
-  // שינוי סטטוס
+  // שינוי סטטוס קמפיין (active / completed)
   const handleToggleStatus = async (
     id: string,
     currentStatus?: Campaign["status"],
@@ -77,37 +77,44 @@ export const useCampaigns = () => {
     }
   };
 
-  // עדכון פרטי קמפיין
+  // עדכון פרטי קמפיין (כולל masterSummary, bgUrl, mapUrl וכו')
   const handleUpdate = async (
-  id: string, 
-  updates: { title?: string; description?: string; bgUrl?: string; mapUrl?: string; status?: string }
-) => {
-  try {
-    // 1. ניקוי שדות undefined כדי שלא ידרסו ערכים קיימים
-    const cleanUpdates = Object.fromEntries(
-      Object.entries(updates).filter(([_, value]) => value !== undefined)
-    );
+    id: string,
+    updates: {
+      title?: string;
+      description?: string;
+      bgUrl?: string;
+      mapUrl?: string;
+      status?: string;
+      masterSummary?: string;
+    }
+  ) => {
+    try {
+      // 1. ניקוי שדות undefined כדי שלא ידרסו ערכים קיימים
+      const cleanUpdates = Object.fromEntries(
+        Object.entries(updates).filter(([_, value]) => value !== undefined)
+      );
 
-    // 2. עדכון אופטימי ב-State
-    setCampaigns((prev) =>
-      prev.map((c) => {
-        if (c.id === id) {
-          return {
-            ...c,
-            ...cleanUpdates,
-          } as Campaign; // 👈 Cast מפורש ל-Campaign
-        }
-        return c;
-      })
-    );
+      // 2. עדכון אופטימי ב-State
+      setCampaigns((prev) =>
+        prev.map((c) => {
+          if (c.id === id) {
+            return {
+              ...c,
+              ...cleanUpdates,
+            } as Campaign;
+          }
+          return c;
+        })
+      );
 
-    // 3. קריאה ל-Backend
-    await updateCampaignData(id, updates);
-  } catch (err) {
-    console.error("Failed to update campaign:", err);
-    loadCampaigns(); // שחזור במקרה של שגיאה
-  }
-};
+      // 3. קריאה ל-Backend
+      await updateCampaignData(id, updates);
+    } catch (err) {
+      console.error("Failed to update campaign:", err);
+      loadCampaigns(); // שחזור במקרה של שגיאה
+    }
+  };
 
   return {
     campaigns,
@@ -115,7 +122,7 @@ export const useCampaigns = () => {
     error,
     refreshCampaigns: loadCampaigns,
     addCampaign: handleCreate,
-    updateCampaign: handleUpdate, // 👈 להחזיר את הפונקציה
+    updateCampaign: handleUpdate,
     toggleStatus: handleToggleStatus,
     deleteCampaign: handleDelete,
   };
