@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { useGeminiChat } from '../../../hooks/useGeminiChat';
+import styles from './../../../styles/GeminiChatDrawer.module.css';
 
 interface GeminiChatDrawerProps {
   isOpen: boolean;
@@ -90,123 +91,157 @@ export const GeminiChatDrawer: React.FC<GeminiChatDrawerProps> = ({
   const lastUserMessageIndex = messages.findLastIndex((m) => m.sender === 'user');
 
   return (
-    <div 
-      dir="rtl" 
-      className="w-full h-full bg-slate-950/90 border border-amber-500/30 rounded-2xl shadow-2xl backdrop-blur-xl flex flex-row overflow-hidden text-right select-text font-sans relative"
-    >
+    <div className={styles.chatContainer}>
       {/* Sidebar */}
-      <div
-        className={`${
-          isSidebarOpen ? 'w-64 border-l border-slate-800/80 opacity-100' : 'w-0 opacity-0'
-        } transition-all duration-300 ease-in-out overflow-hidden bg-slate-950/95 flex flex-col justify-between select-none z-20`}
-      >
-        <div className="p-3">
+      <div className={`${styles.sidebar} ${isSidebarOpen ? styles.sidebarOpen : styles.sidebarClosed}`}>
+        <div className={styles.sidebarContent}>
+          {/* כפתור שיחה חדשה */}
           <button
             onClick={() => {
               handleCreateNewSession();
               setIsSidebarOpen(false);
             }}
             disabled={loading}
-            className="w-full bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold py-2.5 px-3 rounded-xl text-xs transition-all duration-200 shadow-md hover:shadow-amber-500/20 flex items-center justify-center gap-2 mb-4 disabled:opacity-50"
+            className={styles.newChatBtn}
           >
             <span>✨</span> שיחה חדשה
           </button>
 
-          <div className="text-[11px] font-bold tracking-wider uppercase text-slate-400 mb-2 px-1">
-            סשנים ושיחות
-          </div>
-
-          <div className="space-y-1.5 max-h-[70vh] overflow-y-auto pr-0.5">
-            {sessions.map((s) => (
-              <div
-                key={s.id}
+          {/* קטגוריה: פרומפטים ופעולות מהירות */}
+          <div className={styles.sidebarSection}>
+            <div className={styles.sectionHeader}>
+              <span>💡</span> עזרה ופרומפטים
+            </div>
+            <div className={styles.promptsList}>
+              <button
+                onClick={triggerManualAISummary}
+                disabled={loading}
+                className={styles.promptBtn}
+              >
+                <span>📜</span> סכם שיחה ל-PDF
+              </button>
+              <button
                 onClick={() => {
-                  selectSession(s.id);
+                  sendMessage('תן לי סיכום קצר, תכונות ומראה עבור דמות בקמפיין');
                   setIsSidebarOpen(false);
                 }}
-                className={`group flex items-center justify-between p-2.5 rounded-xl text-xs cursor-pointer transition-all duration-150 ${
-                  s.id === currentSessionId
-                    ? 'bg-amber-500/15 text-amber-300 border border-amber-500/30 font-medium'
-                    : 'text-slate-400 hover:bg-slate-900 hover:text-slate-200'
-                }`}
+                className={styles.promptBtn}
               >
-                {editingSessionId === s.id ? (
-                  <form onSubmit={(e) => saveSessionTitle(s.id, e)} className="flex-1 flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-                    <input
-                      type="text"
-                      value={editingTitle}
-                      onChange={(e) => setEditingTitle(e.target.value)}
-                      autoFocus
-                      onBlur={() => saveSessionTitle(s.id)}
-                      className="w-full bg-slate-900 border border-amber-500/50 rounded px-1.5 py-0.5 text-xs text-amber-200 focus:outline-none"
-                    />
-                  </form>
-                ) : (
-                  <>
-                    <span className="truncate flex-1 pl-1">🎲 {s.title}</span>
-                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button
-                        onClick={(e) => startEditingSession(s.id, s.title, e)}
-                        className="text-slate-400 hover:text-amber-300 text-xs p-1"
-                        title="ערוך שם"
-                      >
-                        ✏️
-                      </button>
-                      <button
-                        onClick={(e) => handleDeleteSession(s.id, e)}
-                        className="text-slate-500 hover:text-rose-400 text-xs p-1"
-                        title="מחק שיחה"
-                      >
-                        🗑️
-                      </button>
-                    </div>
-                  </>
-                )}
-              </div>
-            ))}
+                <span>👤</span> סיכום דמות
+              </button>
+              <button
+                onClick={() => {
+                  sendMessage('צור לי רעיון למפגש קרב מעניין (Encounter) לרמה הנוכחית');
+                  setIsSidebarOpen(false);
+                }}
+                className={styles.promptBtn}
+              >
+                <span>⚔️</span> רעיון למפגש קרב
+              </button>
+            </div>
+          </div>
+
+          <hr className={styles.sidebarDivider} />
+
+          {/* קטגוריה: שיחות אחרונות */}
+          <div className={styles.sidebarSection}>
+            <div className={styles.sectionHeader}>
+              <span>💬</span> שיחות אחרונות
+            </div>
+            <div className={styles.sessionsList}>
+              {sessions.map((s) => (
+                <div
+                  key={s.id}
+                  onClick={() => {
+                    selectSession(s.id);
+                    setIsSidebarOpen(false);
+                  }}
+                  className={`${styles.sessionItem} ${
+                    s.id === currentSessionId ? styles.sessionActive : styles.sessionInactive
+                  }`}
+                >
+                  {editingSessionId === s.id ? (
+                    <form
+                      onSubmit={(e) => saveSessionTitle(s.id, e)}
+                      className="flex-1 flex items-center gap-1"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <input
+                        type="text"
+                        value={editingTitle}
+                        onChange={(e) => setEditingTitle(e.target.value)}
+                        autoFocus
+                        onBlur={() => saveSessionTitle(s.id)}
+                        className={styles.sessionTitleInput}
+                      />
+                    </form>
+                  ) : (
+                    <>
+                      <span className="truncate flex-1 pl-1">🎲 {s.title}</span>
+                      <div className={styles.sessionActions}>
+                        <button
+                          onClick={(e) => startEditingSession(s.id, s.title, e)}
+                          className={styles.sessionActionBtn}
+                          title="ערוך שם"
+                        >
+                          ✏️
+                        </button>
+                        <button
+                          onClick={(e) => handleDeleteSession(s.id, e)}
+                          className={`${styles.sessionActionBtn} ${styles.sessionDeleteBtn}`}
+                          title="מחק שיחה"
+                        >
+                          🗑️
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </div>
 
       {/* Main Chat Area */}
       <div 
-        className="flex-1 flex flex-col h-full overflow-hidden bg-slate-900/40"
+        className={styles.mainChatBody}
         onClick={() => isSidebarOpen && setIsSidebarOpen(false)}
       >
-        <div className="p-3.5 border-b border-slate-800/80 flex justify-between items-center bg-slate-950/70 backdrop-blur-md select-none">
-          <div className="flex items-center gap-2.5">
+        <div className={styles.chatHeader}>
+          <div className={styles.headerLeftGroup}>
             <button
               onClick={(e) => {
                 e.stopPropagation();
                 setIsSidebarOpen(!isSidebarOpen);
               }}
-              className="p-1.5 text-slate-400 hover:text-amber-400 bg-slate-800/60 hover:bg-slate-800 border border-slate-700/50 rounded-xl text-xs transition flex items-center gap-1.5"
+              className={styles.sidebarToggleBtn}
               title="תפריט שיחות"
             >
               <span>📑</span>
               <span className="font-semibold">{sessions.length}</span>
             </button>
-            <div className="h-4 w-[1px] bg-slate-800 mx-0.5" />
-            <div className="flex items-center gap-2">
-              <span className="text-base animate-pulse">🐉</span>
-              <h3 className="text-xs font-bold text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-amber-400 to-amber-500">
+            <div className={styles.headerDivider} />
+            <div className={styles.headerTitleWrapper}>
+              <span className={styles.headerIcon}>🐉</span>
+              <h3 className={styles.headerTitle}>
                 Dungeon Master Assistant
               </h3>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-100 p-1.5 text-sm rounded-xl hover:bg-slate-800/80 transition"
+            className={styles.closeChatBtn}
           >
             ✕
           </button>
         </div>
 
-        <div className="flex-1 p-4 overflow-y-auto space-y-4 select-text scrollbar-thin scrollbar-thumb-slate-800">
+        <div className={styles.messagesContainer}>
           {messages.length === 0 && (
-            <div className="h-full flex flex-col items-center justify-center text-center opacity-60">
-              <span className="text-3xl mb-2">🐉</span>
-              <p className="text-xs text-slate-400">מה נפתח בשיחה הזו, שליט המבוך?</p>
+            <div className={styles.emptyState}>
+              <span className={styles.emptyIcon}>🐉</span>
+              <p className={styles.emptyText}>מה נפתח בשיחה הזו, שליט המבוך?</p>
             </div>
           )}
 
@@ -216,17 +251,19 @@ export const GeminiChatDrawer: React.FC<GeminiChatDrawerProps> = ({
             return (
               <div
                 key={i}
-                className={`flex flex-col group ${msg.sender === 'user' ? 'items-start' : 'items-end'}`}
+                className={`${styles.messageRow} ${
+                  msg.sender === 'user' ? styles.userMessageRow : styles.dmMessageRow
+                }`}
               >
-                <div className="flex items-center gap-2 mb-1 px-1">
-                  <span className="text-[10px] text-slate-400 font-mono">
+                <div className={styles.messageMeta}>
+                  <span className={styles.messageSenderLabel}>
                     {msg.sender === 'user' ? '👤 אתה' : '🐉 Dungeon Master'}
                   </span>
 
                   {isLastUserMessage && !loading && (
                     <button
                       onClick={handleEditClick}
-                      className="opacity-0 group-hover:opacity-100 text-[10px] text-amber-400 hover:text-amber-300 transition flex items-center gap-0.5"
+                      className={styles.editMsgBtn}
                       title="ערוך הודעה אחרונה"
                     >
                       <span>✏️</span>
@@ -237,11 +274,9 @@ export const GeminiChatDrawer: React.FC<GeminiChatDrawerProps> = ({
 
                 <div
                   dir="auto"
-                  className={`max-w-[88%] rounded-2xl px-4 py-3 text-xs leading-relaxed transition-all shadow-sm ${
-                    msg.sender === 'user'
-                      ? 'bg-amber-500 text-slate-950 font-medium rounded-tr-none shadow-amber-500/5'
-                      : 'bg-slate-950/80 text-slate-100 border border-slate-800/80 rounded-tl-none shadow-slate-950/40 prose prose-invert prose-xs max-w-none prose-p:leading-relaxed'
-                  }`}
+                  className={`${styles.messageBubble} ${
+                    msg.sender === 'user' ? styles.userBubble : styles.dmBubble
+                  } ${msg.sender !== 'user' ? 'prose prose-invert prose-xs max-w-none prose-p:leading-relaxed' : ''}`}
                 >
                   {msg.sender === 'user' ? (
                     <p className="whitespace-pre-wrap select-text">{msg.text}</p>
@@ -254,36 +289,19 @@ export const GeminiChatDrawer: React.FC<GeminiChatDrawerProps> = ({
           })}
 
           {loading && (
-            <div className="flex flex-col items-end">
-              <span className="text-[10px] text-slate-400 mb-1 px-1 font-mono">🐉 Dungeon Master</span>
-              <div className="bg-slate-950/80 text-amber-400 border border-amber-500/20 rounded-2xl rounded-tl-none px-4 py-3 text-xs flex items-center gap-2 shadow-lg">
-                <span className="inline-block w-2 h-2 rounded-full bg-amber-400 animate-ping" />
-                <span className="text-slate-300">ה-DM חושב ומנסח תשובה...</span>
+            <div className={styles.typingIndicatorRow}>
+              <span className={styles.messageMeta}>🐉 Dungeon Master</span>
+              <div className={styles.typingBubble}>
+                <span className={styles.typingDot} />
+                <span className={styles.typingText}>ה-DM חושב ומנסח תשובה...</span>
               </div>
             </div>
           )}
           <div ref={messagesEndRef} />
         </div>
 
-        {/* Quick Actions */}
-        <div className="px-3 py-2 border-t border-slate-800/50 bg-slate-950/40 flex gap-2 overflow-x-auto text-[11px] select-none no-scrollbar">
-          <button
-            onClick={triggerManualAISummary}
-            disabled={loading}
-            className="bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 font-semibold px-3 py-1.5 rounded-xl border border-amber-500/30 whitespace-nowrap transition flex items-center gap-1.5 disabled:opacity-50"
-          >
-            📜 סכם שיחה ל-PDF
-          </button>
-          <button
-            onClick={() => sendMessage('תן לי סיכום קצר, תכונות ומראה עבור דמות בקמפיין')}
-            className="bg-slate-800/50 hover:bg-slate-800 text-slate-300 hover:text-amber-300 px-3 py-1.5 rounded-xl border border-slate-700/50 whitespace-nowrap transition"
-          >
-            👤 סיכום דמות
-          </button>
-        </div>
-
         {/* Input Form */}
-        <form onSubmit={handleSubmit} className="p-3 border-t border-slate-800/80 bg-slate-950/90 flex items-end gap-2">
+        <form onSubmit={handleSubmit} className={styles.inputForm}>
           <textarea
             ref={textareaRef}
             rows={1}
@@ -292,16 +310,16 @@ export const GeminiChatDrawer: React.FC<GeminiChatDrawerProps> = ({
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            className="flex-1 bg-slate-900/90 border border-slate-700/70 rounded-xl px-3.5 py-2.5 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-amber-500/80 transition text-right select-text resize-none max-h-32 scrollbar-thin"
+            className={styles.chatTextarea}
           />
           <button
             type="submit"
             disabled={!input.trim() || loading}
             title="שלח הודעה"
-            className="bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 font-bold w-[38px] h-[38px] rounded-xl text-xs transition-all duration-150 disabled:opacity-30 select-none flex items-center justify-center shadow-md hover:shadow-amber-500/20 shrink-0 group"
+            className={styles.sendBtn}
           >
             <svg 
-              className="w-4 h-4 transform -rotate-45 -translate-y-0.5 translate-x-0.5 group-hover:scale-110 transition-transform" 
+              className={styles.sendIcon} 
               fill="currentColor" 
               viewBox="0 0 24 24"
             >
