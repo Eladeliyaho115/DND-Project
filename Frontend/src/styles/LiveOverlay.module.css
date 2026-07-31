@@ -90,6 +90,9 @@
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
 }
 
 .btnBack:hover,
@@ -151,17 +154,6 @@
   gap: 1rem;
   height: 100%;
   min-height: 0;
-}
-
-.chatContainer {
-  height: 100%;
-  background: rgba(15, 23, 42, 0.75);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(245, 158, 11, 0.2);
-  border-radius: 0.75rem;
-  overflow: hidden;
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
 }
 
 .mapContainer {
@@ -308,7 +300,35 @@
     gap: 0.5rem;
   }
 
-  /* 📱 תפריט ניווט מובייל בתחתית המסך */
+  /* 📱 כותרת עליונה במובייל - אייקונים בלבד ושם קמפיין מלא בלי חיתוך */
+  .header {
+    padding: 0.5rem 0.75rem;
+  }
+
+  .title {
+    font-size: 0.95rem;
+    max-width: 160px;
+    overflow: visible;
+    text-overflow: clip;
+    white-space: normal;
+    line-height: 1.2;
+  }
+
+  .headerRight {
+    gap: 0.375rem;
+  }
+
+  .btnBack,
+  .btnControls {
+    padding: 0.375rem 0.5rem;
+    justify-content: center;
+  }
+
+  .btnText {
+    display: none;
+  }
+
+  /* 📱 תפריט ניווט מובייל בתחתית המסך - אייקונים בלבד */
   .mobileTabBar {
     display: flex;
     direction: ltr !important;
@@ -330,10 +350,11 @@
 
   .mobileTabBtn {
     flex: 1;
-    padding: 0.625rem;
-    font-size: 0.85rem;
-    font-weight: 600;
-    color: #94a3b8;
+    padding: 0.5rem;
+    font-size: 1.25rem; /* גדל מעט כדי להציג את האייקון בברור */
+    display: flex;
+    align-items: center;
+    justify-content: center;
     background: transparent;
     border: none;
     border-radius: 0.625rem;
@@ -341,14 +362,17 @@
     transition: all 0.2s ease;
   }
 
+  .tabText {
+    display: none; /* הסתרת הכיתוב במובייל והשארת האייקון בלבד */
+  }
+
   .mobileTabActive {
     background: #f59e0b;
     color: #020617;
-    font-weight: 700;
     box-shadow: 0 2px 8px rgba(245, 158, 11, 0.4);
   }
 
-  /* דריסת Grid בדסקטופ והוספת שוליים בתחתית עבור התפריט הצף */
+  /* מרווח ביטחון בתחתית המסך עבור הבר הצף ושורת ההקלדה */
   .mainGrid {
     display: flex !important;
     flex-direction: column !important;
@@ -357,7 +381,7 @@
     direction: ltr !important;
     flex: 1;
     min-height: 0;
-    padding-bottom: 3.75rem; /* רווח למניעת הסתרת תוכן מאחורי ה-mobileTabBar */
+    padding-bottom: 5.5rem; 
   }
 
   .chatPanel,

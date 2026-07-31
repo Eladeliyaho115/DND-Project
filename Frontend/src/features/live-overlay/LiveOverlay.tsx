@@ -34,20 +34,22 @@ export const LiveOverlay: React.FC<LiveOverlayProps> = ({ campaign, onBack, onUp
         {/* Header */}
         <header className={styles.header}>
           <div className={styles.headerLeft}>
-            <button onClick={onBack} className={styles.btnBack}>← Back to Hub</button>
+            <button onClick={onBack} className={styles.btnBack} title="Back to Hub">
+              <span>←</span> <span className={styles.btnText}>Back to Hub</span>
+            </button>
             <h1 className={styles.title}>{campaign.title}</h1>
           </div>
           <div className={styles.headerRight}>
-            <button onClick={actions.toggleLanguage} className={styles.btnControls}>
-              🌐 {state.language === "en" ? "עברית" : "English"}
+            <button onClick={actions.toggleLanguage} className={styles.btnControls} title={state.language === "en" ? "עברית" : "English"}>
+              <span>🌐</span> <span className={styles.btnText}>{state.language === "en" ? "עברית" : "English"}</span>
             </button>
             {!state.isChatOpen && (
-              <button onClick={() => actions.setIsChatOpen(true)} className={styles.btnControls}>
-                ✨ {state.language === "he" ? "פתח עוזר AI" : "Open AI Assistant"}
+              <button onClick={() => actions.setIsChatOpen(true)} className={styles.btnControls} title={state.language === "he" ? "פתח עוזר AI" : "Open AI Assistant"}>
+                <span>✨</span> <span className={styles.btnText}>{state.language === "he" ? "פתח עוזר AI" : "Open AI Assistant"}</span>
               </button>
             )}
-            <button onClick={() => actions.setIsAdminOpen(true)} className={styles.btnControls}>
-              ⚙ {state.language === "he" ? "בקרת שליט מבוך" : "DM Controls"}
+            <button onClick={() => actions.setIsAdminOpen(true)} className={styles.btnControls} title={state.language === "he" ? "בקרת שליט מבוך" : "DM Controls"}>
+              <span>⚙</span> <span className={styles.btnText}>{state.language === "he" ? "בקרת שליט מבוך" : "DM Controls"}</span>
             </button>
           </div>
         </header>
@@ -57,7 +59,7 @@ export const LiveOverlay: React.FC<LiveOverlayProps> = ({ campaign, onBack, onUp
           {/* AI Chat */}
           <aside className={`${styles.chatPanel} ${state.activeMobileTab === "chat" ? styles.mobileTabVisible : ""}`}>
             {state.isChatOpen && (
-              <div className={styles.chatContainer}>
+              <div className="w-full h-full flex flex-col">
                 <GeminiChatDrawer
                   isOpen={state.isChatOpen}
                   onClose={() => actions.setIsChatOpen(false)}
