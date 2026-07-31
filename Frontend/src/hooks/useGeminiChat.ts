@@ -5,6 +5,8 @@ import {
   fetchSessionMessages,
   createNewSession,
   deleteSession,
+  updateSessionTitle,
+  updateSessionMessages,
   type ChatMessage,
   type ChatSession,
   type StateUpdates,
@@ -18,7 +20,7 @@ const INITIAL_MESSAGE: ChatMessage = {
 
 export const useGeminiChat = (
   campaignId?: string,
-  onStateUpdate?: (stateUpdates: StateUpdates) => void
+  onStateUpdate?: (stateUpdates: StateUpdates) => void,
 ) => {
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
@@ -27,19 +29,16 @@ export const useGeminiChat = (
   const [loading, setLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // גלילה אוטומטית לתחתית השיחה בכל עדכון
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
 
-  // שליפת כל השיחות של הקמפיין בלחיצה/טעינה
   const loadSessions = useCallback(async () => {
     if (!campaignId) return;
     try {
       const fetchedSessions = await fetchCampaignSessions(campaignId);
       setSessions(fetchedSessions);
 
-      // אם יש שיחות ועדיין לא נבחרה שיחה, נפתח את השיחה הראשונה/האחרונה
       if (fetchedSessions.length > 0 && !currentSessionId) {
         selectSession(fetchedSessions[0].id);
       }
@@ -52,7 +51,6 @@ export const useGeminiChat = (
     loadSessions();
   }, [loadSessions]);
 
-  // טעינת הודעות עבור שיחה נבחרת מה-DB
   const selectSession = async (sessionId: string) => {
     setCurrentSessionId(sessionId);
     setLoading(true);
@@ -70,7 +68,6 @@ export const useGeminiChat = (
     }
   };
 
-  // יצירת שיחה חדשה
   const handleCreateNewSession = async () => {
     if (!campaignId) return;
     setLoading(true);
@@ -86,7 +83,6 @@ export const useGeminiChat = (
     }
   };
 
-  // מחיקת שיחה
   const handleDeleteSession = async (
     sessionId: string,
     e: React.MouseEvent,
@@ -112,13 +108,31 @@ export const useGeminiChat = (
     }
   };
 
-  // שליחת הודעה בצ'אט
+  const handleUpdateSessionTitle = async (sessionId: string, newTitle: string) => {
+    setSessions((prev) =>
+      prev.map((s) => (s.id === sessionId ? { ...s, title: newTitle } : s)),
+    );
+    try {
+      await updateSessionTitle(sessionId, newTitle);
+    } catch (err) {
+      console.error("Failed to update session title in DB:", err);
+    }
+  };
+
   const sendMessage = async (customPrompt?: string) => {
     const textToSend = customPrompt || input;
     if (!textToSend.trim() || loading) return;
 
     const userMsg = textToSend.trim();
     if (!customPrompt) setInput("");
+
+    if (currentSessionId) {
+      const currentSession = sessions.find((s) => s.id === currentSessionId);
+      if (currentSession && (currentSession.title === "שיחה חדשה" || !currentSession.title)) {
+        const generatedTitle = userMsg.length > 25 ? userMsg.substring(0, 25) + "..." : userMsg;
+        handleUpdateSessionTitle(currentSessionId, generatedTitle);
+      }
+    }
 
     const updatedMessages: ChatMessage[] = [
       ...messages,
@@ -128,12 +142,10 @@ export const useGeminiChat = (
     setLoading(true);
 
     try {
-      // 1. סינון הודעת הפתיחה הדיפולטית
       const cleanHistory = updatedMessages
         .slice(0, -1)
         .filter((m) => m.text !== INITIAL_MESSAGE.text);
 
-      // 2. הגבלה ל-20 ההודעות האחרונות בלבד עבור היקף טוקנים אופטימלי ומהירות
       const recentHistory = cleanHistory.slice(-20);
 
       const res = await sendMessageToGemini(
@@ -143,12 +155,10 @@ export const useGeminiChat = (
         currentSessionId || undefined,
       );
 
-      // ⚡ במידה והשרת מחזיר שינויי State (כמו HP) מפעילים את ה-Callback
       if (res.stateUpdates && onStateUpdate) {
         onStateUpdate(res.stateUpdates);
       }
 
-      // עדכון ה-sessionId במידה ונוצר כעת סשן חדש בלייב בשרת
       if (!currentSessionId && res.sessionId) {
         setCurrentSessionId(res.sessionId);
         loadSessions();
@@ -173,7 +183,28 @@ export const useGeminiChat = (
     }
   };
 
-  // סיכום יזום ל-PDF בלחיצת כפתור
+  // עריכת ההודעה האחרונה של המשתמש
+  const editLastUserMessage = async () => {
+    if (messages.length === 0 || loading) return;
+
+    const lastUserIndex = messages.findLastIndex((m) => m.sender === "user");
+    if (lastUserIndex === -1) return;
+
+    const messageToEdit = messages[lastUserIndex];
+    const updatedMessages = messages.slice(0, lastUserIndex);
+
+    setMessages(updatedMessages);
+    setInput(messageToEdit.text);
+
+    if (currentSessionId) {
+      try {
+        await updateSessionMessages(currentSessionId, updatedMessages);
+      } catch (err) {
+        console.error("Failed to update messages in DB:", err);
+      }
+    }
+  };
+
   const triggerManualAISummary = async () => {
     if (!campaignId) {
       alert("לא ניתן להפיק סיכום ללא campaignId מוגדר.");
@@ -221,11 +252,14 @@ export const useGeminiChat = (
     selectSession,
     handleCreateNewSession,
     handleDeleteSession,
+    handleUpdateSessionTitle,
     messages,
+    setMessages,
     input,
     setInput,
     loading,
     sendMessage,
+    editLastUserMessage,
     triggerManualAISummary,
     messagesEndRef,
   };

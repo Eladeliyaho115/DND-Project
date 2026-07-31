@@ -66,3 +66,28 @@ export const getMessageCountBySession = async (sessionId: string) => {
     where: { sessionId },
   });
 };
+
+// 8. עדכון והחלפת כל היסטוריית ההודעות בסשן (למשל בעת עריכת הודעה אחרונה)
+export const updateSessionMessages = async (sessionId: string, messages: { sender: 'user' | 'gemini'; text: string }[]) => {
+  // מחיקת כל ההודעות הקיימות בסשן ויצירתן מחדש לפי המערך המעודכן
+  return await prisma.$transaction(async (tx) => {
+    await tx.chatMessage.deleteMany({
+      where: { sessionId },
+    });
+
+    if (messages.length > 0) {
+      await tx.chatMessage.createMany({
+        data: messages.map((msg) => ({
+          sessionId,
+          sender: msg.sender,
+          text: msg.text,
+        })),
+      });
+    }
+
+    return await tx.chatSession.update({
+      where: { id: sessionId },
+      data: { updatedAt: new Date() },
+    });
+  });
+};

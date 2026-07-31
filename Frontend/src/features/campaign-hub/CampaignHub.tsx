@@ -3,6 +3,7 @@ import type { Campaign } from '../../types/campaign';
 import { CampaignCard } from './components/CampaignCard';
 import { CreateCampaignModal } from './components/CreateCampaignModal';
 import { EditCampaignModal } from './components/EditCampaignModal';
+import { FullscreenButton } from '@components/FullscreenButton';
 
 interface CampaignHubProps {
   campaigns: Campaign[];
@@ -83,6 +84,8 @@ export const CampaignHub: React.FC<CampaignHubProps> = ({
         onToggleStatus={onToggleStatus}
         onDeleteCampaign={onDeleteCampaign}
       />
+
+      <FullscreenButton />
     </div>
   );
 };

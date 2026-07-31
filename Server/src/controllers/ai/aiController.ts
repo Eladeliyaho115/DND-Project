@@ -6,7 +6,9 @@ import {
   createChatSession,
   getSessionsByCampaign,
   getMessagesBySession,
-  deleteChatSession
+  deleteChatSession,
+  updateSessionTitle,
+  updateSessionMessages
 } from "../../services/ai/chatService.js";
 import { generateAISummary } from "../../services/ai/summaryService.js";
 import { updateCharacterHp } from "../../services/character/characterService.js";
@@ -46,7 +48,7 @@ export const handleAIChat = async (req: Request<{}, {}, AIChatRequestBody>, res:
       await saveMessage(activeSessionId, 'user', prompt);
     }
 
-    // שליחת הבקשה למודל Gemini לקבלת תשובה מובנית
+    // שליחת הבקשה למודל AI לקבלת תשובה מובנית
     const aiResponsePayload = await sendMessageToGemini({
       prompt,
       history: history || [],
@@ -70,7 +72,6 @@ export const handleAIChat = async (req: Request<{}, {}, AIChatRequestBody>, res:
     if (activeSessionId) {
       await saveMessage(activeSessionId, 'gemini', replyText);
 
-      // בדיקה: האם נצברו כפולות של 30 הודעות בשיחה הזו?
       const messageCount = await getMessageCountBySession(activeSessionId);
       if (campaignId && messageCount > 0 && messageCount % 30 === 0) {
         console.log(`🤖 מפעיל סיכום אוטומטי לאחר ${messageCount} הודעות בשיחה ${activeSessionId}...`);
@@ -151,5 +152,37 @@ export const handleDeleteSession = async (req: Request<{ sessionId: string }>, r
   } catch (error) {
     console.error("Error handleDeleteSession:", error);
     return res.status(500).json({ error: "שגיאה במחיקת השיחה." });
+  }
+};
+
+// 6. עדכון כותרת שיחה
+export const handleUpdateSessionTitleController = async (req: Request<{ sessionId: string }, {}, { title: string }>, res: Response) => {
+  try {
+    const { sessionId } = req.params;
+    const { title } = req.body;
+    if (!sessionId || !title) {
+      return res.status(400).json({ error: "sessionId and title are required" });
+    }
+    const updatedSession = await updateSessionTitle(sessionId, title);
+    return res.json(updatedSession);
+  } catch (error) {
+    console.error("Error updating session title:", error);
+    return res.status(500).json({ error: "שגיאה בעדכון כותרת השיחה." });
+  }
+};
+
+// 7. עדכון הודעות השיחה (עבור עריכת הודעה אחרונה)
+export const handleUpdateSessionMessagesController = async (req: Request<{ sessionId: string }, {}, { messages: { sender: 'user' | 'gemini'; text: string }[] }>, res: Response) => {
+  try {
+    const { sessionId } = req.params;
+    const { messages } = req.body;
+    if (!sessionId || !Array.isArray(messages)) {
+      return res.status(400).json({ error: "sessionId and messages array are required" });
+    }
+    const updatedSession = await updateSessionMessages(sessionId, messages);
+    return res.json({ success: true, updatedSession });
+  } catch (error) {
+    console.error("Error updating session messages:", error);
+    return res.status(500).json({ error: "שגיאה בעדכון הודעות השיחה." });
   }
 };

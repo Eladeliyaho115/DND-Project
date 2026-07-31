@@ -2,7 +2,6 @@ import { useState } from "react";
 import { useCampaigns } from "./hooks/useCampaigns";
 import { CampaignHub } from "./features/campaign-hub/CampaignHub";
 import { LiveOverlay } from "./features/live-overlay/LiveOverlay";
-import { FullscreenButton } from "./components/FullscreenButton";
 
 export const App = () => {
   const {
@@ -49,7 +48,6 @@ export const App = () => {
         />
       )}
 
-      <FullscreenButton />
     </>
   );
 };

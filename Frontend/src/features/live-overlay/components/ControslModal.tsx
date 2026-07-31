@@ -1,8 +1,11 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import type { Character } from "../../../types/character";
 import { AddCharacterModal } from "./AddCharacterModal";
-import { uploadCharacterSheetPDF } from "../../../services/characterSheetPDFService";
 import { CampaignSummaries } from "./CampaignSummaries";
+import { FullscreenButton } from "./../../../components/FullscreenButton";
+import { useControlsModal } from "./../../../hooks/useControlsModal";
+import { UrlInputSection } from "./../../../components/UrlInputSection";
+import { CharacterRow } from "./CharacterRow";
 
 interface ControlsModalProps {
   isOpen: boolean;
@@ -25,80 +28,30 @@ export const ControlsModal: React.FC<ControlsModalProps> = ({
   onUpdateBg,
   onUpdateMapUrl,
 }) => {
-  const [bgInput, setBgInput] = useState("");
-  const [mapInput, setMapInput] = useState("");
   const [isAddCharOpen, setIsAddCharOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<"controls" | "summaries">("controls");
 
-  const [uploadingCharId, setUploadingCharId] = useState<string | null>(null);
-  const [uploadMessage, setUploadMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && !isAddCharOpen) {
-        onClose();
-      }
-    };
-
-    if (isOpen) {
-      window.addEventListener("keydown", handleKeyDown);
-    }
-
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [isOpen, isAddCharOpen, onClose]);
+  const {
+    bgInput,
+    setBgInput,
+    mapInput,
+    setMapInput,
+    activeTab,
+    setActiveTab,
+    uploadingCharId,
+    uploadMessage,
+    handleBgSubmit,
+    handleMapSubmit,
+    handleFileUpload,
+  } = useControlsModal(
+    isOpen,
+    isAddCharOpen,
+    onClose,
+    campaignId,
+    onUpdateBg,
+    onUpdateMapUrl,
+  );
 
   if (!isOpen) return null;
-
-  const handleBgSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const trimmed = bgInput.trim();
-    if (trimmed) {
-      onUpdateBg(trimmed);
-      setBgInput("");
-    }
-  };
-
-  const handleMapSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const trimmed = mapInput.trim();
-    if (trimmed && onUpdateMapUrl) {
-      onUpdateMapUrl(trimmed);
-      setMapInput("");
-    }
-  };
-
-  const handleFileUpload = async (char: Character, e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !campaignId) return;
-
-    if (file.type !== "application/pdf") {
-      setUploadMessage({ type: "error", text: "נא לבחור קובץ PDF בלבד" });
-      return;
-    }
-
-    const charIdentifier = char.id || char.beyondId || null;
-
-    try {
-      setUploadingCharId(charIdentifier);
-      setUploadMessage(null);
-
-      await uploadCharacterSheetPDF({
-        campaignId,
-        characterName: char.name,
-        file,
-      });
-
-      setUploadMessage({ type: "success", text: `דף הדמות של ${char.name} הועלה בהצלחה!` });
-    } catch (error) {
-      console.error("Error uploading sheet:", error);
-      setUploadMessage({ type: "error", text: `שגיאה בהעלאת דף הדמות של ${char.name}` });
-    } finally {
-      setUploadingCharId(null);
-      e.target.value = "";
-    }
-  };
 
   return (
     <>
@@ -128,21 +81,13 @@ export const ControlsModal: React.FC<ControlsModalProps> = ({
           <div className="flex gap-2 border-b border-slate-800 pb-3 mb-4">
             <button
               onClick={() => setActiveTab("controls")}
-              className={`px-4 py-1.5 rounded-xl text-xs font-bold transition ${
-                activeTab === "controls"
-                  ? "bg-amber-500/20 text-amber-300 border border-amber-500/40"
-                  : "bg-slate-800/50 text-slate-400 hover:text-slate-200"
-              }`}
+              className={`px-4 py-1.5 rounded-xl text-xs font-bold transition ${activeTab === "controls" ? "bg-amber-500/20 text-amber-300 border border-amber-500/40" : "bg-slate-800/50 text-slate-400 hover:text-slate-200"}`}
             >
               ⚙️ הגדרות ודמויות
             </button>
             <button
               onClick={() => setActiveTab("summaries")}
-              className={`px-4 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
-                activeTab === "summaries"
-                  ? "bg-amber-500/20 text-amber-300 border border-amber-500/40"
-                  : "bg-slate-800/50 text-slate-400 hover:text-slate-200"
-              }`}
+              className={`px-4 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${activeTab === "summaries" ? "bg-amber-500/20 text-amber-300 border border-amber-500/40" : "bg-slate-800/50 text-slate-400 hover:text-slate-200"}`}
             >
               📜 סיכומי קמפיין
             </button>
@@ -154,11 +99,7 @@ export const ControlsModal: React.FC<ControlsModalProps> = ({
               <>
                 {uploadMessage && (
                   <div
-                    className={`p-2 text-xs rounded-lg text-center border ${
-                      uploadMessage.type === "success"
-                        ? "bg-emerald-950/40 text-emerald-400 border-emerald-500/30"
-                        : "bg-rose-950/40 text-rose-400 border-rose-500/30"
-                    }`}
+                    className={`p-2 text-xs rounded-lg text-center border ${uploadMessage.type === "success" ? "bg-emerald-950/40 text-emerald-400 border-emerald-500/30" : "bg-rose-950/40 text-rose-400 border-rose-500/30"}`}
                   >
                     {uploadMessage.text}
                   </div>
@@ -186,67 +127,18 @@ export const ControlsModal: React.FC<ControlsModalProps> = ({
                     ) : (
                       characters.map((char) => {
                         const currentCharId = char.id || char.beyondId;
-                        const isUploadingThis = uploadingCharId === currentCharId;
-
                         return (
-                          <div
+                          <CharacterRow
                             key={currentCharId}
-                            className="flex items-center justify-between bg-slate-950 p-2.5 rounded-xl border border-slate-800"
-                          >
-                            <div className="flex items-center gap-3">
-                              {char.avatarUrl ? (
-                                <img
-                                  src={char.avatarUrl}
-                                  alt={char.name}
-                                  className="w-8 h-8 rounded-lg object-cover border border-amber-500/40"
-                                />
-                              ) : (
-                                <div className="w-8 h-8 rounded-lg bg-slate-800 border border-slate-700 flex items-center justify-center text-xs text-slate-400">
-                                  🛡️
-                                </div>
-                              )}
-                              <div>
-                                <p className="text-xs font-bold text-slate-200">
-                                  {char.name || "דמות ללא שם"}
-                                </p>
-                                <p className="text-[10px] text-slate-400">
-                                  {char.class || "לא הוגדר"} • Lvl {char.level || 1} ({char.player || "ללא שחקן"})
-                                </p>
-                              </div>
-                            </div>
-
-                            <div className="flex items-center gap-2">
-                              <label
-                                className={`cursor-pointer text-xs p-1.5 rounded-lg border transition ${
-                                  isUploadingThis
-                                    ? "bg-amber-900/60 border-amber-500/50 text-amber-300 cursor-wait"
-                                    : "bg-slate-800/40 hover:bg-slate-700 border-slate-600/50 text-slate-300"
-                                }`}
-                                title="העלה דף דמות (PDF)"
-                              >
-                                {isUploadingThis ? "⏳" : "📄"}
-                                <input
-                                  type="file"
-                                  accept="application/pdf"
-                                  className="hidden"
-                                  disabled={isUploadingThis}
-                                  onChange={(e) => handleFileUpload(char, e)}
-                                />
-                              </label>
-
-                              <button
-                                onClick={() => {
-                                  if (window.confirm(`להסיר את ${char.name} מהקמפיין?`)) {
-                                    onRemoveCharacter(char.id);
-                                  }
-                                }}
-                                className="text-xs text-rose-400 hover:text-rose-300 bg-rose-950/40 hover:bg-rose-900/60 p-1.5 rounded-lg border border-rose-500/20 transition"
-                                title="הסר דמות"
-                              >
-                                🗑️
-                              </button>
-                            </div>
-                          </div>
+                            character={char}
+                            isUploading={uploadingCharId === currentCharId}
+                            onFileUpload={(e) => handleFileUpload(char, e)}
+                            onRemove={() =>
+                              window.confirm(
+                                `להסיר את ${char.name} מהקמפיין?`,
+                              ) && onRemoveCharacter(char.id)
+                            }
+                          />
                         );
                       })
                     )}
@@ -256,51 +148,41 @@ export const ControlsModal: React.FC<ControlsModalProps> = ({
                 <hr className="border-slate-800 my-4" />
 
                 {/* 2. שינוי תמונת מפת עולם */}
-                <section>
-                  <h4 className="text-sm font-semibold text-slate-300 mb-2">
-                    🗺️ שינוי תמונת מפת עולם (URL)
-                  </h4>
-                  <form onSubmit={handleMapSubmit} className="flex gap-2">
-                    <input
-                      type="text"
-                      placeholder="הדבק קישור למפה..."
-                      value={mapInput}
-                      onChange={(e) => setMapInput(e.target.value)}
-                      className="flex-1 bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-amber-500 transition"
-                    />
-                    <button
-                      type="submit"
-                      disabled={!mapInput.trim()}
-                      className="px-3 py-2 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-amber-400 font-bold text-xs rounded-xl transition"
-                    >
-                      עדכן מפה
-                    </button>
-                  </form>
-                </section>
+                <UrlInputSection
+                  title="🗺️ שינוי תמונת מפת עולם (URL)"
+                  placeholder="הדבק קישור למפה..."
+                  buttonText="עדכן מפה"
+                  value={mapInput}
+                  onChange={setMapInput}
+                  onSubmit={handleMapSubmit}
+                />
 
                 <hr className="border-slate-800 my-4" />
 
                 {/* 3. שינוי תמונת רקע קמפיין */}
-                <section>
-                  <h4 className="text-sm font-semibold text-slate-300 mb-2">
-                    🖼️ שינוי תמונת רקע קמפיין (URL)
-                  </h4>
-                  <form onSubmit={handleBgSubmit} className="flex gap-2">
-                    <input
-                      type="text"
-                      placeholder="הדבק קישור לתמונה..."
-                      value={bgInput}
-                      onChange={(e) => setBgInput(e.target.value)}
-                      className="flex-1 bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-amber-500 transition"
-                    />
-                    <button
-                      type="submit"
-                      disabled={!bgInput.trim()}
-                      className="px-3 py-2 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-amber-400 font-bold text-xs rounded-xl transition"
-                    >
-                      עדכן
-                    </button>
-                  </form>
+                <UrlInputSection
+                  title="🖼️ שינוי תמונת רקע קמפיין (URL)"
+                  placeholder="הדבק קישור לתמונה..."
+                  buttonText="עדכן"
+                  value={bgInput}
+                  onChange={setBgInput}
+                  onSubmit={handleBgSubmit}
+                />
+
+                <hr className="border-slate-800 my-4" />
+
+                {/* 🖥️ 4. הגדרות תצוגה ומסך מלא */}
+                <section className="flex items-center justify-between bg-slate-950 p-3 rounded-xl border border-slate-800">
+                  <div>
+                    <h4 className="text-sm font-semibold text-slate-300">
+                      📺 תצוגת מסך מלא
+                    </h4>
+                    <p className="text-[11px] text-slate-500">
+                      מעבר בין מצב מסך מלא לתצוגה רגילה
+                    </p>
+                  </div>
+
+                  <FullscreenButton className="relative bg-slate-800 hover:bg-slate-700 text-amber-400 border border-amber-500/30 p-2.5 rounded-xl transition-all duration-200 hover:scale-105 active:scale-95 flex items-center justify-center" />
                 </section>
               </>
             ) : (

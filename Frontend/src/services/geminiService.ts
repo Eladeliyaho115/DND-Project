@@ -82,3 +82,17 @@ export const createNewSession = async (campaignId: string, title?: string): Prom
 export const deleteSession = async (sessionId: string): Promise<void> => {
   await api.delete(`/ai/sessions/${sessionId}`);
 };
+
+/**
+ * עדכון כותרת סשן בשרת
+ */
+export const updateSessionTitle = async (sessionId: string, title: string): Promise<void> => {
+  await api.patch(`/ai/sessions/${sessionId}/title`, { title });
+};
+
+/**
+ * עדכון הודעות השיחה בשרת (למשל בעת עריכת הודעה אחרונה)
+ */
+export const updateSessionMessages = async (sessionId: string, messages: ChatMessage[]): Promise<void> => {
+  await api.put(`/ai/sessions/${sessionId}/messages`, { messages });
+};
