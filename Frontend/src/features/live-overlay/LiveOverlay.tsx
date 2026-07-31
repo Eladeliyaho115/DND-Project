@@ -5,6 +5,7 @@ import { ControlsModal } from "./components/ControslModal";
 import { GeminiChatDrawer } from "./components/GeminiChatDrawer";
 import { DiceRoller } from "./components/DiceRoller";
 import { MobileTabBar } from "./components/MobileTabBar";
+import { FullscreenButton } from "./../../components/FullscreenButton";
 import { useLiveOverlayLogic } from "./../../hooks/useLiveOverlayLogic";
 
 import styles from "@styles/LiveOverlay.module.css";
@@ -40,6 +41,9 @@ export const LiveOverlay: React.FC<LiveOverlayProps> = ({ campaign, onBack, onUp
             <h1 className={styles.title}>{campaign.title}</h1>
           </div>
           <div className={styles.headerRight}>
+            <button>
+             <FullscreenButton className="relative bg-slate-800 hover:bg-slate-700 text-amber-400 border border-amber-500/30 p-2.5 rounded-xl transition-all duration-200 hover:scale-105 active:scale-95 flex items-center justify-center" />
+            </button>
             <button onClick={actions.toggleLanguage} className={styles.btnControls} title={state.language === "en" ? "עברית" : "English"}>
               <span>🌐</span> <span className={styles.btnText}>{state.language === "en" ? "עברית" : "English"}</span>
             </button>

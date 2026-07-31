@@ -516,3 +516,18 @@
 .sendBtn:hover:not(:disabled) .sendIcon {
   transform: rotate(-45deg) scale(1.1) translateY(-0.125rem) translateX(0.125rem);
 }
+
+@media (max-width: 768px) {
+  /* הגדלת הפונט והריווח הפנימי בתוך תיבת הטקסט */
+  .chatTextarea {
+    font-size: 0.9rem; /* הגדלת הטקסט המוקלד מ-12px ל-~14.5px */
+    padding: 0.75rem 0.875rem; /* הגדלת הריווח מלמעלה למטה */
+    min-height: 2.75rem; /* מבטיח גובה מינימלי נוח לנגיעה (Touch Target) */
+  }
+
+  /* התאמת כפתור השליחה לגובה החדש של התיבה */
+  .sendBtn {
+    width: 2.75rem;
+    height: 2.75rem;
+  }
+}

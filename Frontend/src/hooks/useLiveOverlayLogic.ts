@@ -11,7 +11,7 @@ export const useLiveOverlayLogic = (
   const [isAdminOpen, setIsAdminOpen] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(true);
   const [language, setLanguage] = useState<"en" | "he">("en");
-  const [activeMobileTab, setActiveMobileTab] = useState<"map" | "party" | "chat">("map");
+  const [activeMobileTab, setActiveMobileTab] = useState<"map" | "party" | "chat">("chat");
   const [selectedNotation, setSelectedNotation] = useState<string | null>(null);
 
   const [characters, setCharacters] = useState<Character[]>(campaign.characters);
