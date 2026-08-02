@@ -14,7 +14,10 @@
   text-align: right;
   direction: rtl;
   user-select: text;
-  font-family: system-ui, -apple-system, sans-serif;
+  font-family:
+    system-ui,
+    -apple-system,
+    sans-serif;
   position: relative;
 }
 
@@ -286,6 +289,7 @@
   font-size: 0.75rem;
   font-weight: 700;
   background: linear-gradient(to right, #fde68a, #fbbf24, #f59e0b);
+  background-clip: text;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   margin: 0;
@@ -373,7 +377,9 @@
   background: transparent;
   border: none;
   cursor: pointer;
-  transition: opacity 0.2s ease, color 0.2s ease;
+  transition:
+    opacity 0.2s ease,
+    color 0.2s ease;
   display: flex;
   align-items: center;
   gap: 0.125rem;
@@ -514,7 +520,8 @@
 }
 
 .sendBtn:hover:not(:disabled) .sendIcon {
-  transform: rotate(-45deg) scale(1.1) translateY(-0.125rem) translateX(0.125rem);
+  transform: rotate(-45deg) scale(1.1) translateY(-0.125rem)
+    translateX(0.125rem);
 }
 
 @media (max-width: 768px) {

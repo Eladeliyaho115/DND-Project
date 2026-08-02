@@ -1,5 +1,4 @@
 // backend/src/services/summary/summaryService.ts
-
 import PDFDocument from 'pdfkit';
 import { prisma } from "../../config/db.js";
 import { GoogleGenAI } from '@google/genai';

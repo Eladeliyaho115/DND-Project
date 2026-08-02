@@ -1,12 +1,14 @@
 import { GoogleGenAI, Type } from "@google/genai";
-import Groq from "groq-sdk";
+import Cerebras from "@cerebras/cerebras_cloud_sdk";
+// import Groq from "groq-sdk"; // 👈 נשמר בהערה לשימוש עתידי
 import { prisma } from "../../config/db.js";
 import { getCharacterSheetPDFsByCampaign } from "../character/characterSheetPDFService.js";
 import { getSummariesByCampaign } from "../ai/summaryService.js";
 
 // אתחול SDKs
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+const cerebras = new Cerebras({ apiKey: process.env.CEREBRAS_API_KEY });
+// const groq = new Groq({ apiKey: process.env.GROQ_API_KEY }); // 👈 נשמר בהערה
 
 export interface ChatMessage {
   sender: "user" | "gemini";
@@ -25,7 +27,6 @@ export interface GameStateUpdates {
 }
 
 export interface AIResponsePayload {
-  internal_reasoning?: string;
   narrative: string;
   stateUpdates?: GameStateUpdates;
 }
@@ -47,7 +48,7 @@ interface ChatOptions {
 const SYSTEM_INSTRUCTION = `
 You are an expert Dungeon Master (DM) running a D&D 5e campaign using the updated 2024 Core Rules.
 
-INTERNAL REASONING (Before responding):
+INTERNAL REASONING (Think step-by-step before generating output):
 1. Analyze player action and current location/scene state.
 2. Determine applicable 2024 5e rules, DCs, or skill checks needed.
 3. Plan environmental consequences without robbing player agency.
@@ -63,9 +64,8 @@ CORE RULES & BEHAVIOR:
 8. LANGUAGE: Respond in the primary language the player addresses you in (Hebrew or English).
 
 JSON OUTPUT REQUIREMENTS:
-You MUST return a JSON object with this EXACT structure:
+You MUST return a valid JSON object with this EXACT structure (Do NOT include internal_reasoning in the JSON output):
 {
-  "internal_reasoning": "Your analysis of rules, DCs, and player actions goes here...",
   "narrative": "Story text here...",
   "stateUpdates": {
     "hpChanges": [{"characterName": "Name", "changeAmount": -5}],
@@ -78,22 +78,21 @@ If an event causes damage/healing, populate hpChanges with negative (damage) or 
 `;
 
 /**
- * 🧠 בניית הקונטקסט המבוסס שכבות (GameState + Master Summary + 2 Recent Summaries + Character Sheets)
+ * 🧠 בניית הקונטקסט המבוסס שכבות (GameState + Master Summary + Recent Summaries + Character Sheets)
  */
 async function buildCampaignContext(
   campaignId?: string,
-  gameState?: CurrentGameState
+  gameState?: CurrentGameState,
+  maxRecentSummaries: number = 2,
 ): Promise<string> {
   let contextText = "";
 
-  // 1. זיכרון לטווח קצר - GameState ממוקד
   if (gameState) {
     contextText += `\n=== CURRENT GAME STATE ===\n${JSON.stringify(gameState, null, 2)}\n`;
   }
 
   if (!campaignId) return contextText;
 
-  // 2. זיכרון לטווח ארוך - Master Campaign Summary
   try {
     const campaign = await prisma.campaign.findUnique({
       where: { id: campaignId },
@@ -107,12 +106,13 @@ async function buildCampaignContext(
     console.error("❌ שגיאה בשליפת Master Summary:", err);
   }
 
-  // 3. זיכרון לטווח בינוני - 2 סיכומים אחרונים
   try {
     const campaignSummaries = await getSummariesByCampaign(campaignId);
-    const last2Summaries = campaignSummaries.slice(0, 2).reverse();
+    const recentSummaries = campaignSummaries
+      .slice(0, maxRecentSummaries)
+      .reverse();
 
-    for (const summary of last2Summaries) {
+    for (const summary of recentSummaries) {
       const summaryText = summary.parsedContent || summary.content;
       if (summaryText) {
         contextText += `\n[MID-TERM MEMORY - RECENT SESSION SUMMARY]:\n${summaryText}\n`;
@@ -122,7 +122,6 @@ async function buildCampaignContext(
     console.error("❌ שגיאה בשליפת סיכומי קמפיין:", err);
   }
 
-  // 4. דפי דמות
   try {
     const characterSheets = await getCharacterSheetPDFsByCampaign(campaignId);
     for (const sheet of characterSheets) {
@@ -137,50 +136,56 @@ async function buildCampaignContext(
   return contextText;
 }
 
-// הפונקציה הראשית
+// הפונקציה הראשית - Cerebras (gpt-oss-120b) כ-Primary עם Fallback ל-Gemini
 export const sendMessageToGemini = async (
-  options: ChatOptions
+  options: ChatOptions,
 ): Promise<AIResponsePayload> => {
-  const provider = process.env.AI_PROVIDER || "groq";
+  const provider = process.env.AI_PROVIDER || "cerebras";
 
   console.log("-----------------------------------------");
   console.log(
-    `📥 קיבלתי בקשת צ'אט חדשה! [Runtime Provider: ${provider.toUpperCase()}]`
+    `📥 קיבלתי בקשת צ'אט חדשה! [Runtime Provider: ${provider.toUpperCase()}]`,
   );
 
-  if (provider === "groq") {
+  if (provider === "cerebras") {
     try {
-      return await sendMessageToGroqFast(options);
-    } catch (err) {
+      return await sendMessageToCerebrasPrimary(options);
+    } catch (err: any) {
       console.error(
-        "⚠️ שגיאה ב-Groq API! עובר ל-Gemini Direct כ-Fallback...",
-        err
+        `⚠️ שגיאה ב-Cerebras API! [סיבה: ${err?.message || err}]. עובר ל-Gemini Direct כ-Fallback...`,
       );
       return await sendMessageToGeminiDirect(options);
     }
   }
 
+  /* 
+  // 👈 שמור להפעלת Groq בעתיד אם תרצה:
+  if (provider === "groq") {
+    try {
+      return await sendMessageToGroqFast(options);
+    } catch (err: any) {
+      return await sendMessageToGeminiDirect(options);
+    }
+  }
+  */
+
   return await sendMessageToGeminiDirect(options);
 };
 
 /**
- * ⚡ שליחה מהירה ל-Groq
+ * ⚡ שליחה ל-Cerebras (gpt-oss-120b) כ-Primary
  */
-const sendMessageToGroqFast = async ({
+const sendMessageToCerebrasPrimary = async ({
   prompt,
   history,
   campaignId,
   gameState,
 }: ChatOptions): Promise<AIResponsePayload> => {
-  const contextText = await buildCampaignContext(campaignId, gameState);
-
-  console.log(
-    `📊 אורך הקונטקסט שנשלח ל-Groq (מתוך DB + State): ${contextText.length} תווים.`
-  );
+  const contextText = await buildCampaignContext(campaignId, gameState, 2);
 
   const messages: any[] = [{ role: "system", content: SYSTEM_INSTRUCTION }];
 
-  const recentHistory = history.slice(-20);
+  const recentHistory = history.slice(-10);
 
   recentHistory.forEach((msg) => {
     messages.push({
@@ -195,16 +200,31 @@ const sendMessageToGroqFast = async ({
 
   messages.push({ role: "user", content: finalUserPrompt });
 
-  const completion = await groq.chat.completions.create({
-    model: "qwen/qwen3.6-27b",
+  const totalCharacters = JSON.stringify(messages).length;
+  const estimatedTokens = Math.ceil(totalCharacters / 3.5);
+
+  console.log(
+    `📊 אורך הקונטקסט שנשלח ל-Cerebras: ${contextText.length} תווים.`,
+  );
+  console.log(
+    `🧮 הערכת Tokens כוללת לקריאה (Payload): ~${estimatedTokens} Tokens.`,
+  );
+
+  // 1. ביצוע הקריאה עם הגדרת הטיפוס :any
+  const completion: any = await cerebras.chat.completions.create({
+    model: "gpt-oss-120b",
     messages: messages,
     temperature: 0.7,
+    max_tokens: 10000,
     response_format: { type: "json_object" },
   });
 
-  console.log("🤖 Active Model Used:", completion.model);
+  // 2. הדפסת המודל שהחזירה התשובה
+  console.log("🤖 Active Model Used:", completion?.model || "gpt-oss-120b");
 
-  const responseText = completion.choices[0]?.message?.content || "{}";
+  // 3. חילוץ התוכן והחזרת ה-JSON
+  const responseText = completion?.choices?.[0]?.message?.content || "{}";
+
   return JSON.parse(responseText) as AIResponsePayload;
 };
 
@@ -217,10 +237,10 @@ const sendMessageToGeminiDirect = async ({
   campaignId,
   gameState,
 }: ChatOptions): Promise<AIResponsePayload> => {
-  const contextText = await buildCampaignContext(campaignId, gameState);
+  const contextText = await buildCampaignContext(campaignId, gameState, 2);
 
   const contents: any[] = [];
-  const recentHistory = history.slice(-20);
+  const recentHistory = history.slice(-30);
 
   recentHistory.forEach((msg) => {
     contents.push({
@@ -248,7 +268,6 @@ const sendMessageToGeminiDirect = async ({
       responseSchema: {
         type: Type.OBJECT,
         properties: {
-          internal_reasoning: { type: Type.STRING },
           narrative: { type: Type.STRING },
           stateUpdates: {
             type: Type.OBJECT,
@@ -279,3 +298,41 @@ const sendMessageToGeminiDirect = async ({
   const responseText = response.text || "{}";
   return JSON.parse(responseText) as AIResponsePayload;
 };
+
+/* 
+// 👈 שמור בהערה: האימפלמנטציה הקודמת של Groq למקרה שתצטרך אותה בעתיד
+const sendMessageToGroqFast = async ({
+  prompt,
+  history,
+  campaignId,
+  gameState,
+}: ChatOptions): Promise<AIResponsePayload> => {
+  const contextText = await buildCampaignContext(campaignId, gameState, 1);
+  const messages: any[] = [{ role: "system", content: SYSTEM_INSTRUCTION }];
+  const recentHistory = history.slice(-6);
+
+  recentHistory.forEach((msg) => {
+    messages.push({
+      role: msg.sender === "user" ? "user" : "assistant",
+      content: msg.text,
+    });
+  });
+
+  const finalUserPrompt = contextText
+    ? `=== CONTEXT DATA ===\n${contextText}\n=== PLAYER ACTION / QUESTION ===\n${prompt}`
+    : prompt;
+
+  messages.push({ role: "user", content: finalUserPrompt });
+
+  const completion = await groq.chat.completions.create({
+    model: "qwen/qwen3.6-27b",
+    messages: messages,
+    temperature: 0.7,
+    response_format: { type: "json_object" },
+    max_tokens: 1500,
+  });
+
+  const responseText = completion.choices[0]?.message?.content || "{}";
+  return JSON.parse(responseText) as AIResponsePayload;
+};
+*/
